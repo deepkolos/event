@@ -4,7 +4,8 @@
   "description": "补充移动端事件, 包括gesture, 还有相对dom来说的, blur, focus, over, 更加标准的行为定义,还有互斥关系",
   "main": "index.js",
   "scripts": {
-    "test": "test"
+    "test": "echo 0",
+    "build": "webpack"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,10 @@
   },
   "homepage": "https://github.com/deepkolos/event#readme",
   "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-env": "^1.6.1",
+    "uglifyjs-webpack-plugin": "^1.0.1",
     "webpack": "^3.8.1"
   }
 }
