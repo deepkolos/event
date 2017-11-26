@@ -1,11 +1,15 @@
 
 
+
+
 export function addEvent($dom, type, config){
 
   //初始化dom里面的储存结构
   if($dom.__event === undefined){
     $dom.__event = {
+      list: {
 
+      }
     };
 
     $dom.addEventListener('touchstart', _touchstart, false);
@@ -16,6 +20,13 @@ export function addEvent($dom, type, config){
 
   //添加事件配置
 
+  //初始化对应的数组
+  //TODO: 想一个把这类初始化可以变得优雅的方式,还有长长链
+  if($dom.__event.list[type] === undefined){
+    $dom.__event.list[type] = [config];
+  }else{
+    $dom.__event.list[type].push(config);
+  }
 }
 
 // 内部实现
@@ -73,6 +84,8 @@ function _groupstart(evt){
   });
   _last_dom_involved = _dom_involved[_dom_involved.length-1];
 
+  //判断是否重新schedule
+  
   //生成schedule
   _dom_involved.forEach(function($dom){
 
