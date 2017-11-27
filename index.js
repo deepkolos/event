@@ -1,7 +1,6 @@
 
 
 
-
 export function addEvent($dom, type, config){
 
   //初始化dom里面的储存结构
@@ -49,7 +48,13 @@ const _ON_FINGER = 0;
 const _ON_DOM = 1;
 const _ON_EVENT = 2;
 
-const _EVENT_TYPE = {
+const _STATUS_INIT = 0;
+const _STATUS_START = -1;
+const _STATUS_END = -2;
+const _STATUS_MOVE = -3;
+const _STATUS_CANCEL = -4;
+
+const _EVENT = {
   // 离散事件
   tap: {
     type: _TYPE_MONENT,
@@ -154,7 +159,7 @@ function _bubbleend(evt){
   }
 }
 
-function _groupstart(evt){1
+function _groupstart(evt){
   //初始化这次group涉及涉及的dom
   _dom_involved = [];
   evt.path.forEach(function($dom){
@@ -169,34 +174,52 @@ function _groupstart(evt){1
   //生成schedule
   _dom_involved.forEach(function($dom){
     var list = $dom.__event.list;
-    for(var type in list){
-      if(type === 'group'){
-
-        ;
-
+    for(var event in list){
+      if(event === 'group'){
+        list[event].forEach(function(config){
+          _schedule.group[_getEventId(event, config)] = {
+            status: _STATUS_INIT
+          };
+        });
       }else{
-
-        list[type].forEach(function(config){
+        list[event].forEach(function(config){
 
           if(typeof config.repeat === 'number' && config.repeat > 1){
             // 将会由group来实现
-
-          }else{
-            // 其实直接写入好了,不需要重复
-            _schedule.base[type] = {
-              status: 'init',
-              finger: 1
+            _schedule.group[_getEventId(event, config)] = {
+              status: _STATUS_INIT
             };
-            //这是离散/连续事件公有的
-            //但是连续事件会有多两个状态
+          }else{
 
+            // 其实直接写入好了,不需要做重复的判断
+            if(_EVENT[event].on === _ON_FINGER){
+              //仅仅处理on finger的手势类就行了
+              if(_EVENT[event].type === _TYPE_MONENT){
+                //离散事件
+                var data = {
+                  status: _STATUS_INIT,
+                  finger: 1
+                };
+                
+                if(event === 'longtap')
+                  _schedule.base[event+'-'+config.longtapThreshold] = data;
+                else
+                  _schedule.base[event] = data;
+
+              }else if(_EVENT[event].type === _TYPE_CONTINUOUS){
+                //连续事件
+                _schedule.base[event] = {
+                  status: _STATUS_INIT,
+                  finger: 1,
+                  startWidth: null,
+                  endWidth: null
+                };
+              }
+            }
           }
-
         });
       }
-      
     }
-
   });
 }
 
@@ -213,4 +236,33 @@ function _triggerbubble($nowDom, evt){
     _bubble_started = false;
     _bubbleend(evt);
   }
+}
+
+
+//工具函数, 所有的函数有会
+function _getEventId(event, config){
+  //突然发现基事件,其实就是一个group..靠
+  if(event === 'group'){
+    //group
+
+  }else{
+
+    //repeat
+    if(typeof config.repeat === 'number' && config.repeat > 1){
+      //longtap
+
+      //其他
+
+    }else{
+      //longtap
+
+      //其他
+      
+    }
+
+  }
+
+  
+  return ;
+
 }
