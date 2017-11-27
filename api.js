@@ -14,10 +14,7 @@ var type = [
   'group'
 ];
 
-addEvent(document.createElement('div'), type, {
-  //status
-  disable: Boolean,
-
+var controller = addEvent(document.createElement('div'), type, {
   //config
   repeat: Number,
   finger: Number,
@@ -33,10 +30,14 @@ addEvent(document.createElement('div'), type, {
   //triggerRegister
   start: _start,
   move: _move,// 连续事件会触发这个
-  end: _end,
+  end: _end,//离散事件仅仅支持end和cancel,但是语义不好
   cancel: _cancal
 });
 
+controller.enable();
+controller.disable();
+controller.removeEvent();
+controller.set('key', 'value');
 
 function _start(){
   //这里给出参数定义

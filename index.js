@@ -239,7 +239,7 @@ function _triggerbubble($nowDom, evt){
 }
 
 
-//工具函数, 所有的函数有会
+//工具函数
 function _getEventId(event, config){
   //突然发现基事件,其实就是一个group..靠
   if(event === 'group'){
