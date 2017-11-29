@@ -14,7 +14,8 @@ var type = [
   'group'
 ];
 
-var controller = addEvent(document.createElement('div'), type, {
+var controller = addEvent(document.createElement('div'), {
+  type: type,
   //config
   repeat: Number,
   finger: Number,
@@ -54,3 +55,50 @@ function _end(){
 function _cancal(){
 
 }
+
+var groupDemo = addEvent(document.createElement('div'), {
+  type: 'group',
+  
+  group: [
+    {
+      type: 'tap',
+      repeat: 2,
+      finger: 2
+    },{
+      type: 'longtap',
+      longtapThreshold: 700
+    },{
+      type: 'swipe',
+      startWidth: 'left',
+      endWidth: 'right'
+    },{
+      type: 'group',
+      group: [
+        {
+          type: 'tap',
+          repeat: 2,
+          finger: 3
+        },{
+          type: 'longtap',
+          longtapThreshold: 700
+        }
+      ]
+    }
+  ],
+
+  start: _start,
+  move: _move,
+  end: _end,
+  cancel: _cancal
+});
+
+groupDemo.disable();
+groupDemo.set('start', function cb(){});
+groupDemo.set('group', [
+  {
+    type: 'tap',
+    repeat: 3
+  }
+]);
+groupDemo.enable();
+groupDemo.removeEvent();

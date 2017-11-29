@@ -1,13 +1,22 @@
 
 
 
-export function addEvent($dom, type, config){
+export function addEvent($dom, config={}){
+  var type = config.type;
 
+  if(type === undefined || _EVENT[type] === undefined)
+    throw '请配置事件的type,或者检查拼写正确';
+
+  var on_which = _EVENT[type].on;
+  var _config;
+  
   //初始化dom里面的储存结构
   if($dom.__event === undefined){
     $dom.__event = {
       list: {
-
+        [_ON_DOM]: {},
+        [_ON_EVENT]: {},
+        [_ON_FINGER]: []
       }
     };
 
@@ -17,15 +26,33 @@ export function addEvent($dom, type, config){
     $dom.addEventListener('touchcancel', _touchcancel, false);
   }
 
-  //添加事件配置
+  var list = $dom.__event.list;
 
-  //初始化对应的数组
-  //TODO: 想一个把这类初始化可以变得优雅的方式,还有长长链
-  if($dom.__event.list[type] === undefined){
-    $dom.__event.list[type] = [config];
+  //添加事件配置
+  if(_EVENT[type].on === _ON_FINGER){
+    //finger需要打扁
+    
+    if(type === 'group')
+      _config = _make_flat_group(config);
+    else
+      _config = _make_flat_base(config);
+
+    //基事件需要被转化为单个的group
+    list[on_which].push(_config);
   }else{
-    $dom.__event.list[type].push(config);
+    _config = config;
+    // dom/event的事件储存到树状结构
+    if(list[on_which][type] === undefined)
+      list[on_which][type] = [];
+
+    // config是否都应该设置默认值?
+    // 配置一定是需要配置上默认值,这样就可以实现配置和代码的分离了
+    // 但是不同类别的又需要不同的默认配置就..唉心累啊
+    list[on_which][type].push(_config);
   }
+  
+  //返回controller
+  return new EventController(_config);
 }
 
 // 内部实现
@@ -38,7 +65,7 @@ var _triggerlist;
 var _bubble_started = false;
 var _dom_involved;// [], order from bubble start to end
 var _last_dom_involved;
-
+var _group_progress = 0;
 
 const _TYPE_MONENT = 0;
 const _TYPE_CONTINUOUS = 1;
@@ -266,3 +293,52 @@ function _getEventId(event, config){
   return ;
 
 }
+
+function _make_flat_base(config){
+  var repeat = config.repeat || 1;
+  var result = [];
+
+  delete config.repeat;
+  if(repeat !== undefined && repeat > 1){
+    for(var i = 0; i < repeat; i++){
+      result.push(Object.assign({}, config));
+    }
+  }
+  return result;
+}
+
+function _make_flat_group(config){
+  if(config.group === undefined || config.group instanceof Array === false)
+    return console.log('group配置有误');
+  
+  var result = [];
+
+  config.group.forEach(function(baseconfig){
+    if(baseconfig.type === 'group')
+      _make_flat_group(baseconfig).forEach(function(item){
+        result.push(item);
+      });
+    else
+      _make_flat_base(baseconfig).forEach(function(item){
+        result.push(item);
+      });
+  });
+
+  return result;
+}
+
+
+//类的定义
+
+//目前先一个文件内编写,之后再做拆分
+function EventController(config){
+  
+}
+
+EventController.prototype.enable = function(){};
+
+EventController.prototype.disable = function(){};
+
+EventController.prototype.set = function(){};
+
+EventController.prototype.removeEvent = function(){};
