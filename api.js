@@ -19,9 +19,11 @@ var controller = addEvent(document.createElement('div'), {
   //config
   repeat: Number,
   finger: Number,
-  after: {
+  after: {//其含义是在一个group内某个事件之后,所以必须是基事件,但是需要支持after的嵌套..不支持,不想增加复杂度了
     type: type,
-    config: Object
+    finger: Number,
+    repeat: 1,//只能为1,不支持group
+    after: {}//会被忽略...其实只是为了支持after longtap,但是结构是可拓展的
   }, //一般是longtap
 
   longtapThreshold: Number,//longtap间隔时间,暂定
