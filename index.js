@@ -21,10 +21,10 @@ export function addEvent($dom, config={}){
       IDGenerator: new IDGenerator()
     };
 
-    $dom.addEventListener('touchstart', _entery, false);
-    $dom.addEventListener('touchmove', _entery, false);
-    $dom.addEventListener('touchend', _entery, false);
-    $dom.addEventListener('touchcancel', _entery, false);
+    $dom.addEventListener('touchstart', _bus, false);
+    $dom.addEventListener('touchmove', _bus, false);
+    $dom.addEventListener('touchend', _bus, false);
+    $dom.addEventListener('touchcancel', _bus, false);
 
     $dom.__event.bus = _bus.bind($dom);
   }
@@ -177,7 +177,8 @@ const _EVENT = {
   }
 };
 
-function _entery(evt){
+function _bus(evt){
+  // 原生事件,定时器事件都走这个bus
   _triggerbubble(this, evt);
 }
 
@@ -391,12 +392,6 @@ function _check_need_of_regenerate_gourp(){
     if(group.status > 0)
       return true;
   }
-}
-
-function _bus(){
-  // 不能走原生的evt的bus,就走这个bus
-  var $dom = this;
-
 }
 
 function _start_bus_bubble(evt){
