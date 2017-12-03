@@ -1,4 +1,5 @@
 import { Object, setTimeout } from "core-js/library/web/timers";
+import { clearTimeout } from "timers";
 
 
 
@@ -76,10 +77,7 @@ export function addEvent($dom, config={}){
 
 // 内部实现
 
-var _schedule = {
-  base: null,
-  group: null
-};
+var _schedule = new _ScheduleController();
 var _triggerlist;
 var _bubble_started = false;
 var _dom_involved;// [], order from bubble start to end
@@ -87,7 +85,7 @@ var _last_dom_involved;
 var _group_progress = 0;
 var _during_gap = false;
 var _finger_on_screen_num = 0;
-var _timers = {};
+var _timer = new _TimerController();
 
 const _DEFAULT_LONGTAP_THRESHOLD = 700;
 
@@ -188,6 +186,8 @@ function _triggerbubble($nowDom, evt){
     _bubblestart(evt);
   }
   if(_bubble_started === true && $nowDom === _last_dom_involved){
+    //不过一般一个bubble的执行时间不会那么长的,不过如果使用了模版编译之类的,就有可能很长时间,
+    //本来打算使用一个frame的时间结束所谓end的,还是不行,行为就不同了
     _bubble_started = false;
     _bubbleend(evt);
   }
@@ -437,57 +437,16 @@ function _touchstart (evt){
   _finger_on_screen_num++;
 
   //更新tap status->start
-  _schedule.base.tap && (_schedule.base.tap.status = _STATUS_START);
+  _schedule.set_base('tap', _STATUS_START);
 
   //longtap 的16ms的定时器
-  _timers.longtap_debounce = setTimeout(function(){
-    var longtap_ids = [];
-    // 更新所有longtap的状态
-    for(var name in _schedule.base){
-      if(name.indexOf('longtap') === 0 ){
-        _schedule.base[name].status = _STATUS_START;
-        longtap_ids.push(name);
-      }
-    }
-    
-    // 更新triggerlist
-    _triggerlist = longtap_ids;
-
-    // 触发一个longtap start 的冒泡
-    _start_bus_bubble({
-      type: 'longtap'
-    });
-
-    // 设置longtap end timer
-    longtap_ids.forEach(function(longtap_id){
-      _timers[longtap_id] = setTimeout(function(){
-        // 更新schedule的状态
-        _schedule.base[longtap_id].status = _STATUS_END;
-
-        // 更新triggerlist
-        _triggerlist = [longtap_id];
-
-        // 触发一个longtap start 的冒泡即可
-        _start_bus_bubble({
-          type: 'longtap'
-        });
-
-        //清空引用, 开始出现重复的东西了
-        _timers[longtap_id] = null;
-
-      }, _schedule[longtap_id].threshold);
-    });
-
-    // 清空timer引用
-    _timers.longtap_debounce = null;
-  }, 20);
-
-
+  _timer.start('longtap_debounce');
 }
 
 function _touchmove(evt){
   // 需要检测目前的状态,如果是触发tap的cancal,基本上每次都会去触发的了
   // longtap就会触发这个cancal,所以这个cancel,tap会触发两次,所以是否有需要触发一下呢
+  _triggerlist = [];
   _trigger('tap', _STATUS_CANCEL);
   _trigger('longtap', _STATUS_CANCEL);
   _trigger('swipe', _STATUS_START);
@@ -511,30 +470,35 @@ function _trigger(type, set_status){
   if(_schedule.base[type]){
     status = _schedule.base[type].status;
 
-    //longtap 仅仅支持init/start/cancel批量
-    if(type === 'longtap' && set_status !== _STATUS_END ){
-      //又要特殊化处理,的确是设计不对...
-      for(var name in _schedule.base){
-        if(name.indexOf('longtap') === 0 ){
-          if(_schedule.base[name].status !== _STATUS_INIT && set_status === _STATUS_CANCEL){
-            _schedule.base[name].status = _STATUS_CANCEL;
-          }else{
-            _schedule.base[name].status = set_status;
-          }
+    if(set_status === _STATUS_INIT)
+      throw 'init不应该触发事件的';
 
-          if(set_status !== _STATUS_INIT)
-            _triggerlist.push(name);
-        }
-      }
-
+    if(set_status === _STATUS_MOVE){
+      _schedule.set_base(type, set_status);
+      _triggerlist.push(type);
     }else{
       if(status === _STATUS_INIT && set_status === _STATUS_CANCEL)
         return;
 
-      _schedule.base[type].status = set_status;
-      
-      if(set_status !== _STATUS_INIT)
+      if(type === 'longtap' && set_status === _STATUS_CANCEL){
+        //longtap仅仅允许做cancel的操作了
+
+        _schedule.base.forEach(function(id){
+          status = _schedule.base[id].status;
+
+          if(id.indexOf('longtap') === 0 && status !== set_status){
+            _schedule.set_base(type, set_status);
+            _triggerlist.push(type);
+          }
+        });
+        return;
+      }
+
+      //start/end/cancel
+      if(status !== set_status){
+        _schedule.set_base(type, set_status);
         _triggerlist.push(type);
+      }
     }
   }
 }
@@ -592,4 +556,95 @@ function IDGenerator(){
 
 IDGenerator.prototype.new = function(){
   return this._id++;
+};
+
+
+function _ScheduleController(){
+  this.base = null;
+  this.group = null;
+}
+
+_ScheduleController.prototype.set_base = function(name, status){
+  if(this.base[name] !== undefined)
+    this.base[name].status = status;
+};
+
+_ScheduleController.prototype.commit_to_group = function(){
+  
+};
+
+_ScheduleController.prototype.set_longtap = function(status){
+  for(var name in this.base){
+    if(name.indexOf('longtap') === 0 ){
+      this.base[name].status = status;
+    }
+  }
+};
+
+function _TimerController(){
+  //储存引用
+  // this.longtap_debounce = null;
+  this.list = {};
+}
+
+_TimerController.prototype.start = function(name, delay){
+  var _callback;
+  var _delay;
+  var self = this;
+
+  function _warp_callback(func){
+    _callback = function(){
+      func();
+      this.list[name] = null;
+    };
+  }
+
+  //一些预设的timer定义,一些执行流的定义不应该嵌套到其他的执行流当中的
+  if(name === 'longtap_debounce'){
+    _delay = delay || 20;
+    _warp_callback(function(){
+      var longtap_ids = [];
+      // 更新所有longtap的状态
+      for(var name in _schedule.base){
+        if(name.indexOf('longtap') === 0 ){
+          _schedule.base[name].status = _STATUS_START;
+          longtap_ids.push(name);
+        }
+      }
+      
+      // 更新triggerlist
+      _triggerlist = longtap_ids;
+  
+      // 触发一个longtap start 的冒泡
+      _start_bus_bubble({
+        type: 'longtap'
+      });
+      
+      // 设置longtap end timer,这个循环还是不提前了,复用了,行为上面不合理感觉
+      longtap_ids.forEach(function(longtap_id){
+        self.start(longtap_id, _schedule.base[longtap_id].threshold);
+      });
+    });
+  }else if(name.indexOf('longtap') === 0){
+    _delay = delay;
+    _warp_callback(function(){
+      // 更新schedule的状态
+      _schedule.set_base(name, _STATUS_END);
+
+      // 更新triggerlist
+      _triggerlist = [name];
+
+      // 触发一个longtap start 的冒泡即可
+      _start_bus_bubble({
+        type: 'longtap'
+      });
+    });
+  }
+
+  return this.list[name] = setTimeout(_callback, _delay);
+};
+
+_TimerController.prototype.stop = function(name){
+  if(this.list[name] !== null)
+    return clearTimeout(this.list[name]);
 };
