@@ -99,8 +99,8 @@ const _ON_EVENT = 2;
 
 const _STATUS_INIT = 0;
 const _STATUS_START = -1;
-const _STATUS_END = -2;
-const _STATUS_MOVE = -3;
+const _STATUS_MOVE = -2;
+const _STATUS_END = -3;
 const _STATUS_CANCEL = -4;
 //正数用于gourp的进度
 
@@ -476,7 +476,7 @@ function _trigger(type, set_status){
     if(set_status === _STATUS_MOVE){
       _schedule.set_base(type, set_status);
       _triggerlist.push(type);
-    }else{
+    }else if(status > set_status){
       if(status === _STATUS_INIT && set_status === _STATUS_CANCEL)
         return;
 
@@ -486,7 +486,7 @@ function _trigger(type, set_status){
         _schedule.base.forEach(function(id){
           status = _schedule.base[id].status;
 
-          if(id.indexOf('longtap') === 0 && status !== set_status){
+          if(id.indexOf('longtap') === 0 && status !== _STATUS_INIT){
             _schedule.set_base(type, set_status);
             _triggerlist.push(type);
           }
@@ -495,10 +495,8 @@ function _trigger(type, set_status){
       }
 
       //start/end/cancel
-      if(status !== set_status){
-        _schedule.set_base(type, set_status);
-        _triggerlist.push(type);
-      }
+      _schedule.set_base(type, set_status);
+      _triggerlist.push(type);
     }
   }
 }
