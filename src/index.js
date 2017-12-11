@@ -21,7 +21,8 @@ import {
   DEFAULT_LONGTAP_THRESHOLD
 } from './define';
 
-export function addEvent($dom, config={}){
+
+function addEvent($dom, config={}){
   var type = config.type;
 
   if(type === undefined || EVENT[type] === undefined)
@@ -93,8 +94,6 @@ export function addEvent($dom, config={}){
   return new EventController(_info);
 }
 
-// 内部实现
-
 var schedule = new ScheduleController();
 var triggerlist;
 var bubble_started = false;
@@ -104,7 +103,6 @@ var group_progress = 0;
 var during_gap = false;
 var actived_finger_num = 0;
 var timer = new TimerController();
-
 
 function bus(evt){
   // 原生事件,定时器事件都走这个bus
@@ -408,3 +406,6 @@ function trigger(type, set_status){
     }
   }
 }
+
+export default addEvent;
+export { schedule, triggerlist, start_bus_bubble, addEvent };

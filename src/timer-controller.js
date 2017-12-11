@@ -2,9 +2,9 @@ import { setTimeout } from "core-js/library/web/timers";
 import { clearTimeout } from "timers";
 import { STATUS_START, STATUS_END} from './define';
 import {
-  _schedule,
-  _triggerlist,/* eslint no-unused-vars: 0 */
-  _start_bus_bubble
+  schedule,
+  triggerlist,/* eslint no-unused-vars: 0 */
+  start_bus_bubble
 } from './index';
 
 export function TimerController(){
@@ -36,37 +36,37 @@ TimerController.prototype.start = function(name, delay){
     _warp_callback(function(){
       var longtap_ids = [];
       // 更新所有longtap的状态
-      for(var name in _schedule.base){
+      for(var name in schedule.base){
         if(name.indexOf('longtap') === 0 ){
-          _schedule.base[name].status = STATUS_START;
+          schedule.base[name].status = STATUS_START;
           longtap_ids.push(name);
         }
       }
       
       // 更新triggerlist
-      _triggerlist = longtap_ids;
+      triggerlist = longtap_ids;
   
       // 触发一个longtap start 的冒泡
-      _start_bus_bubble({
+      start_bus_bubble({
         type: 'longtap'
       });
       
       // 设置longtap end timer,这个循环还是不提前了,复用了,行为上面不合理感觉
       longtap_ids.forEach(function(longtap_id){
-        self.start(longtap_id, _schedule.base[longtap_id].threshold);
+        self.start(longtap_id, schedule.base[longtap_id].threshold);
       });
     });
   }else if(name.indexOf('longtap') === 0){
     _delay = delay;
     _warp_callback(function(){
       // 更新schedule的状态
-      _schedule.set_base(name, STATUS_END);
+      schedule.set_base(name, STATUS_END);
 
       // 更新triggerlist
-      _triggerlist = [name];
+      triggerlist = [name];
 
       // 触发一个longtap start 的冒泡即可
-      _start_bus_bubble({
+      start_bus_bubble({
         type: 'longtap'
       });
     });
