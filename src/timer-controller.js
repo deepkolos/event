@@ -35,23 +35,20 @@ TimerController.prototype.start = function(name, delay){
     _delay = delay || 20;
     _warp_callback(function(){
       var longtap_ids = [];
-      // 更新所有longtap的状态
-      for(var name in schedule.base){
-        if(name.indexOf('longtap') === 0 ){
-          schedule.base[name].status = STATUS_START;
-          longtap_ids.push(name);
+
+      for(let base_name in schedule.base){
+        if(base_name.indexOf('longtap') === 0 ){
+          longtap_ids.push(base_name);
         }
       }
-      
-      // 更新triggerlist
-      triggerlist = longtap_ids;
   
-      // 触发一个longtap start 的冒泡
       start_bus_bubble({
-        type: 'longtap'
+        type: 'longtap',
+        status: STATUS_START,
+        name: 'longtap'
       });
       
-      // 设置longtap end timer,这个循环还是不提前了,复用了,行为上面不合理感觉
+      // 设置longtap end timer
       longtap_ids.forEach(function(longtap_id){
         self.start(longtap_id, schedule.base[longtap_id].threshold);
       });
@@ -59,15 +56,10 @@ TimerController.prototype.start = function(name, delay){
   }else if(name.indexOf('longtap') === 0){
     _delay = delay;
     _warp_callback(function(){
-      // 更新schedule的状态
-      schedule.set_base(name, STATUS_END);
-
-      // 更新triggerlist
-      triggerlist = [name];
-
-      // 触发一个longtap start 的冒泡即可
       start_bus_bubble({
-        type: 'longtap'
+        type: 'longtap',
+        status: STATUS_END,
+        name: name
       });
     });
   }

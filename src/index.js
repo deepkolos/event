@@ -1,4 +1,4 @@
-import { make_flat_group } from './tool';
+import { make_flat_group, get_base_id, get_group_Id } from './tool';
 import { EventController } from './event-controller';
 import { ScheduleController } from './schedule-controller';
 import { TimerController } from './timer-controller';
@@ -162,25 +162,20 @@ function groupstart(evt){
 
     //需要判断是否需要重新生成group
     if(check_need_of_regenerate_gourp())
-      for(let id in groups){
-        info = groups[id];
-        if(schedule.group[info.groupId] === undefined )
-          schedule.group[info.groupId] = {
-            status: STATUS_INIT,
-            group: info.group
-          };
-      }
+      for(let id in groups)
+        schedule.write_group(groups[id]);
 
     //根据现在的group,初始化base
     //每次都会清空状态
-    schedule.base = {};
+    schedule.empty_base();
+
     //更具目前group的进度去初始化
     for(let id in schedule.group){
       base = schedule.group[id].group[group_progress];
       //基事件使用type->的映射就可以了,细微的状态更新方便
-      write_base(base);
+      schedule.write_base(base);
       if(base.after !== undefined)
-        write_base(base.after);
+        schedule.write_base(base.after);
     }
     
     //初始化完毕
@@ -194,83 +189,6 @@ function groupend(evt){
 
 
 //工具函数
-export function get_base_id(config){
-  var type = EVENT[config.type].type;
-  var opts = [
-    {
-      key: 'finger',
-      value: config.finger
-    }
-  ];
-  var opts_string = [];
-  var after = '';
-
-  opts.push();
-
-  if(type === TYPE_CONTINUOUS){
-    opts.push({
-      key: 'startWidth',
-      value: config.startWidth
-    });
-    opts.push({
-      key: 'endWidth',
-      value: config.endWidth
-    });
-  }
-
-  if(config.type === 'longtap'){
-    opts.push({
-      key: 'longtapThreshold',
-      value: config.longtapThreshold
-    });
-  }
-
-  if(config.after !== undefined){
-    after = get_base_id(config.after);
-  }
-
-  opts.forEach(function(opt){
-    opts_string.push(`${opt.key}=${opt.value}`);
-  });
-
-  return `${config.type}[${opts_string.join(',')}]{${after}}`;
-}
-
-function get_group_Id(config){
-  var opts_string = [];
-
-  config.group.forEach(function(baseconfig){
-    opts_string.push(get_base_id(baseconfig));
-  });
-
-  return opts_string.join(',');
-}
-
-function write_base(config){
-  var type = config.type;
-  
-  //特殊处理longtap
-  if(config.type === 'longtap'){
-    if(schedule.base[type+'_'+config.longtapThreshold] === undefined){
-      schedule.base[type] = {
-        status: STATUS_INIT,
-        finger: undefined,
-        threshold: config.longtapThreshold
-      };
-    }
-  }else if(schedule.base[type] === undefined){
-    schedule.base[type] = {
-      status: STATUS_INIT,
-      finger: undefined
-    };
-
-    if(EVENT[type].type === TYPE_CONTINUOUS){
-      schedule.base[type].startWidth = undefined;
-      schedule.base[type].endWidth = undefined;
-    }
-  }
-}
-
 function check_need_of_regenerate_gourp(){
   //判断标准是是否目前group有中间状态,并且是否在gap的期间
   if(during_gap === false)
@@ -364,7 +282,7 @@ function touchcancel(evt){
 }
 
 function longtap(evt){
-  trigger('tap', STATUS_END);
+  trigger(evt.name, evt.status);
 }
 
 function trigger(type, set_status){
@@ -386,8 +304,8 @@ function trigger(type, set_status){
       if(status === STATUS_INIT && set_status === STATUS_CANCEL)
         return;
 
-      if(type === 'longtap' && set_status === STATUS_CANCEL){
-        //longtap仅仅允许做cancel的操作了, 包括longtap_debounce
+      if(type === 'longtap'){
+        //longtap仅仅允许做start/cancel的操作了, 不会包含longtap_debounce, 因为不是基事件来的
 
         schedule.base.forEach(function(id){
           status = schedule.base[id].status;
