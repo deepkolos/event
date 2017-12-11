@@ -1,24 +1,24 @@
 import { setTimeout } from "core-js/library/web/timers";
 import { clearTimeout } from "timers";
-import { _STATUS_START, _STATUS_END} from './define';
+import { STATUS_START, STATUS_END} from './define';
 import {
   _schedule,
   _triggerlist,/* eslint no-unused-vars: 0 */
   _start_bus_bubble
 } from './index';
 
-export function _TimerController(){
+export function TimerController(){
   //储存引用
   // this.longtap_debounce = null;
   this.list = {};
 }
 
-_TimerController.prototype.stop = function(name){
+TimerController.prototype.stop = function(name){
   if(this.list[name] !== null)
     return clearTimeout(this.list[name]);
 };
 
-_TimerController.prototype.start = function(name, delay){
+TimerController.prototype.start = function(name, delay){
   var _callback;
   var _delay;
   var self = this;
@@ -38,7 +38,7 @@ _TimerController.prototype.start = function(name, delay){
       // 更新所有longtap的状态
       for(var name in _schedule.base){
         if(name.indexOf('longtap') === 0 ){
-          _schedule.base[name].status = _STATUS_START;
+          _schedule.base[name].status = STATUS_START;
           longtap_ids.push(name);
         }
       }
@@ -60,7 +60,7 @@ _TimerController.prototype.start = function(name, delay){
     _delay = delay;
     _warp_callback(function(){
       // 更新schedule的状态
-      _schedule.set_base(name, _STATUS_END);
+      _schedule.set_base(name, STATUS_END);
 
       // 更新triggerlist
       _triggerlist = [name];
