@@ -95,18 +95,25 @@ function addEvent($dom, config={}){
 }
 
 var schedule = new ScheduleController();
-var triggerlist;
+var triggerlist; // []
+var dom_involved;// [] order from bubble start to end
 var bubble_started = false;
-var dom_involved;// [], order from bubble start to end
 var last_dom_involved;
 var group_progress = 0;
 var during_gap = false;
 var actived_finger_num = 0;
-var timer = new TimerController();
+var timer = new TimerController(schedule, start_bus_bubble);
 
 function bus(evt){
+  var $dom = this;
   // 原生事件,定时器事件都走这个bus
   triggerbubble(this, evt);
+
+  // 消化triggerlist
+  triggerlist.forEach(function(id){
+    // triggerlist仅仅包含gourp了
+
+  });
 }
 
 function triggerbubble($nowDom, evt){
@@ -188,7 +195,7 @@ function groupend(evt){
 }
 
 
-//工具函数
+//工具函数, 不过不太适合拆分到tool里面
 function check_need_of_regenerate_gourp(){
   //判断标准是是否目前group有中间状态,并且是否在gap的期间
   if(during_gap === false)
@@ -240,90 +247,58 @@ function update_base_status(evt){
 }
 
 function update_triggerlist(evt){
+  // 嗯这样逻辑就统一了
+  // 根据目前的base状态去做把适合的group导出出来咯
+  // 我需要想一下这个时候的group的结构,记得是经过扁平化的
   
+  // goroup的触发的规则
+  // 先找出这次满足触发条件的,group
+  
+  // 找出可能符合进阶的group
+  // group之前的触发规则也是在这里做
+
 }
 
-//update status trigger, 这里仅仅做更新触发器
+//update trigger status, 这里仅仅做更新triggerlist
 function touchstart (evt){
+  var touch_num = evt.touches.length;
   //更新finger信息
-  actived_finger_num++;
+  actived_finger_num = Math.max(actived_finger_num, touch_num);
 
   //更新tap status->start
-  schedule.set_base('tap', STATUS_START);
+  if(touch_num === 1)
+    schedule.set_base('tap', STATUS_START);
 
   //longtap 的16ms的定时器
   timer.start('longtap_debounce');
 }
 
 function touchmove(evt){
-  // 需要检测目前的状态,如果是触发tap的cancal,基本上每次都会去触发的了
-  // longtap就会触发这个cancal,所以这个cancel,tap会触发两次,所以是否有需要触发一下呢
   triggerlist = [];
-  trigger('tap', STATUS_CANCEL);
-  trigger('longtap', STATUS_CANCEL);
-  trigger('swipe', STATUS_START);
-  trigger('swipe', STATUS_MOVE);
+  schedule.set_base('tap', STATUS_CANCEL);
+  schedule.set_base('longtap', STATUS_CANCEL);
+  schedule.set_base('swipe', STATUS_START);
+  schedule.set_base('swipe', STATUS_MOVE);
 
-  if(evt.touches.length > 2){
-    trigger('pinch', STATUS_START);
-    trigger('rotate', STATUS_MOVE);
+  if(evt.touches.length > 1){
+    schedule.set_base('pinch', STATUS_START);
+    schedule.set_base('rotate', STATUS_MOVE);
   }
 }
 
 function touchend(evt){
-
   if(evt.touches.length === 1)
-    trigger('tap', STATUS_END);
+    schedule.set_base('tap', STATUS_END);
 }
 
 function touchcancel(evt){
-  // 目前还不是很清楚touchcancel的触发时机
+  // 目前还不是很清楚touchcancel的触发时机, MDN也就简单说创建了太多的触控点, 会触发,但是还是不清楚
   console.log(evt);
 }
 
 function longtap(evt){
-  trigger(evt.name, evt.status);
-}
-
-function trigger(type, set_status){
-  var status;
-  if(schedule.base[type]){
-    status = schedule.base[type].status;
-
-    if(set_status === STATUS_INIT)
-      throw 'init不应该触发事件的';
-
-    if(set_status === STATUS_MOVE){
-      schedule.set_base(type, set_status);
-      triggerlist.push(type);
-
-    // 要求状态往前推进
-    }else if(status > set_status){
-
-      // 不允许init->cancel
-      if(status === STATUS_INIT && set_status === STATUS_CANCEL)
-        return;
-
-      if(type === 'longtap'){
-        //longtap仅仅允许做start/cancel的操作了, 不会包含longtap_debounce, 因为不是基事件来的
-
-        schedule.base.forEach(function(id){
-          status = schedule.base[id].status;
-
-          if(id.indexOf('longtap') === 0 && status !== STATUS_INIT){
-            schedule.set_base(type, set_status);
-            triggerlist.push(type);
-          }
-        });
-        return;
-      }
-
-      //start/end/cancel
-      schedule.set_base(type, set_status);
-      triggerlist.push(type);
-    }
-  }
+  schedule.set_base(evt.name, evt.status);
 }
 
 export default addEvent;
-export { schedule, triggerlist, start_bus_bubble, addEvent };
+export { schedule, start_bus_bubble, addEvent };

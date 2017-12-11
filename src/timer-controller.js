@@ -1,16 +1,13 @@
 import { setTimeout } from "core-js/library/web/timers";
 import { clearTimeout } from "timers";
 import { STATUS_START, STATUS_END} from './define';
-import {
-  schedule,
-  triggerlist,/* eslint no-unused-vars: 0 */
-  start_bus_bubble
-} from './index';
 
-export function TimerController(){
+export function TimerController(schedule, start_bus_bubble){
   //储存引用
   // this.longtap_debounce = null;
   this.list = {};
+  this.schedule = schedule;
+  this.start_bus_bubble = start_bus_bubble;
 }
 
 TimerController.prototype.stop = function(name){
@@ -22,6 +19,8 @@ TimerController.prototype.start = function(name, delay){
   var _callback;
   var _delay;
   var self = this;
+  var schedule = this.schedule;
+  var start_bus_bubble = this.start_bus_bubble;
 
   function _warp_callback(func){
     _callback = function(){
