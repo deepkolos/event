@@ -1,5 +1,5 @@
 import { addEvent } from "./index";
-import { Number, String, Object } from "core-js/library/web/timers";
+import { Number, String } from "core-js/library/web/timers";
 
 // API约定样例
 

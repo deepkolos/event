@@ -1,7 +1,25 @@
-import { Object, setTimeout } from "core-js/library/web/timers";
-import { clearTimeout } from "timers";
+import { _make_flat_group } from './tool';
+import { EventController } from './event-controller';
+import { _ScheduleController } from './schedule-controller';
+import { _TimerController } from './timer-controller';
+import {
+  _EVENT,
 
+  _STATUS_INIT,
+  _STATUS_START,
+  _STATUS_MOVE,
+  _STATUS_END,
+  _STATUS_CANCEL,
 
+  _ON_FINGER,
+  _ON_DOM,
+  _ON_EVENT,
+
+  _TYPE_UNKNOW,/* eslint no-unused-vars: 0 */
+  _TYPE_CONTINUOUS,
+  _TYPE_MONENT,/* eslint no-unused-vars: 0 */
+  _DEFAULT_LONGTAP_THRESHOLD
+} from './define';
 
 export function addEvent($dom, config={}){
   var type = config.type;
@@ -84,96 +102,9 @@ var _dom_involved;// [], order from bubble start to end
 var _last_dom_involved;
 var _group_progress = 0;
 var _during_gap = false;
-var _finger_on_screen_num = 0;
+var _actived_finger_num = 0;
 var _timer = new _TimerController();
 
-const _DEFAULT_LONGTAP_THRESHOLD = 700;
-
-const _TYPE_MONENT = 0;
-const _TYPE_CONTINUOUS = 1;
-const _TYPE_UNKNOW = 2;
-
-const _ON_FINGER = 0;
-const _ON_DOM = 1;
-const _ON_EVENT = 2;
-
-const _STATUS_INIT = 0;
-const _STATUS_START = -1;
-const _STATUS_MOVE = -2;
-const _STATUS_END = -3;
-const _STATUS_CANCEL = -4;
-//正数用于gourp的进度
-
-const _EVENT = {
-  // 离散事件
-  tap: {
-    type: _TYPE_MONENT,
-    on: _ON_FINGER
-  },
-  longtap: {
-    type: _TYPE_MONENT,
-    on: _ON_FINGER
-  },
-
-  //连续事件
-  swipe: {
-    type: _TYPE_CONTINUOUS,
-    on: _ON_FINGER
-  },
-  pinch: {
-    type: _TYPE_CONTINUOUS,
-    on: _ON_FINGER
-  },
-  rotate: {
-    type: _TYPE_CONTINUOUS,
-    on: _ON_FINGER
-  },
-  //finger事件的自定义组合
-  group: {
-    type: _TYPE_UNKNOW,
-    on: _ON_FINGER
-  },
-
-  //相对dom来说
-  focus: {
-    type: _TYPE_MONENT,
-    on: _ON_DOM
-  },
-  blur: {
-    type: _TYPE_MONENT,
-    on: _ON_DOM
-  },
-  enter: {
-    type: _TYPE_MONENT,
-    on: _ON_DOM
-  },
-  leave: {
-    type: _TYPE_MONENT,
-    on: _ON_DOM
-  },
-  over: {
-    type: _TYPE_CONTINUOUS,
-    on: _ON_DOM
-  },
-
-  //对事件的继续分化事件
-  groupstart: {
-    type: _TYPE_MONENT,
-    on: _ON_EVENT
-  },
-  groupend: {
-    type: _TYPE_MONENT,
-    on: _ON_EVENT
-  },
-  bubblestart: {
-    type: _TYPE_MONENT,
-    on: _ON_EVENT
-  },
-  bubbleend: {
-    type: _TYPE_MONENT,
-    on: _ON_EVENT
-  }
-};
 
 function _bus(evt){
   // 原生事件,定时器事件都走这个bus
@@ -265,7 +196,7 @@ function _groupend(evt){
 
 
 //工具函数
-function _get_base_id(config){
+export function _get_base_id(config){
   var type = _EVENT[config.type].type;
   var opts = [
     {
@@ -315,41 +246,6 @@ function _get_group_Id(config){
   });
 
   return opts_string.join(',');
-}
-
-function _make_flat_base(config){
-  var repeat = config.repeat || 1;
-  var result = [];
-
-  if(repeat !== undefined && repeat > 1){
-    for(var i = 0; i < repeat; i++){
-      result.push(Object.assign({}, config));
-    }
-  }
-  return result;
-}
-
-function _make_flat_group(config){
-  if(config.group === undefined || config.group instanceof Array === false)
-    return console.log('group配置有误');
-  
-  var result = [];
-
-  if(config.type !== 'group')
-    return _make_flat_base(config);
-  
-  config.group.forEach(function(baseconfig){
-    if(baseconfig.type === 'group')
-      _make_flat_group(baseconfig).forEach(function(item){
-        result.push(item);
-      });
-    else
-      _make_flat_base(baseconfig).forEach(function(item){
-        result.push(item);
-      });
-  });
-
-  return result;
 }
 
 function _write_base(config){
@@ -431,10 +327,10 @@ function _update_triggerlist(evt){
   
 }
 
-//update status trigger
+//update status trigger, 这里仅仅做更新触发器
 function _touchstart (evt){
   //更新finger信息
-  _finger_on_screen_num++;
+  _actived_finger_num++;
 
   //更新tap status->start
   _schedule.set_base('tap', _STATUS_START);
@@ -451,18 +347,26 @@ function _touchmove(evt){
   _trigger('longtap', _STATUS_CANCEL);
   _trigger('swipe', _STATUS_START);
   _trigger('swipe', _STATUS_MOVE);
+
+  if(evt.touches.length > 2){
+    _trigger('pinch', _STATUS_START);
+    _trigger('rotate', _STATUS_MOVE);
+  }
 }
 
 function _touchend(evt){
-  
+
+  if(evt.touches.length === 1)
+    _trigger('tap', _STATUS_END);
 }
 
 function _touchcancel(evt){
-  
+  // 目前还不是很清楚touchcancel的触发时机
+  console.log(evt);
 }
 
 function _longtap(evt){
-
+  _trigger('tap', _STATUS_END);
 }
 
 function _trigger(type, set_status){
@@ -476,12 +380,16 @@ function _trigger(type, set_status){
     if(set_status === _STATUS_MOVE){
       _schedule.set_base(type, set_status);
       _triggerlist.push(type);
+
+    // 要求状态往前推进
     }else if(status > set_status){
+
+      // 不允许init->cancel
       if(status === _STATUS_INIT && set_status === _STATUS_CANCEL)
         return;
 
       if(type === 'longtap' && set_status === _STATUS_CANCEL){
-        //longtap仅仅允许做cancel的操作了
+        //longtap仅仅允许做cancel的操作了, 包括longtap_debounce
 
         _schedule.base.forEach(function(id){
           status = _schedule.base[id].status;
@@ -500,149 +408,3 @@ function _trigger(type, set_status){
     }
   }
 }
-
-//类的定义
-
-//目前先一个文件内编写,之后再做拆分
-function EventController(info){
-  this._info = info;
-}
-
-EventController.prototype.enable = function(){
-  //不需要同步到group
-  this._info.config.disable = false;
-};
-
-EventController.prototype.disable = function(){
-  this._info.config.disable = true;
-};
-
-EventController.prototype.set = function(key, value){
-  var need_to_sync_key = [
-    'finger',
-    'startWidth',
-    'endWidth',
-    'group',
-    'repeat'
-  ];
-  this._info.config[key] = value;
-
-  //同步更新group
-  if(need_to_sync_key.indexOf(key) > -1){
-    this._info.group = _make_flat_group(this._info.config);
-    this._info.groupId = _get_group_Id(this._info.group);
-  }
-};
-
-EventController.prototype.removeEvent = function(){
-  var id = this._info.id;
-  var type = this._info.config.type;
-  var on_which = _EVENT[type].on;
-  var $dom = this._info.$dom;
-
-  if(on_which === _ON_FINGER)
-    delete $dom.__event.list[on_which][id];
-  else
-    delete $dom.__event.list[on_which][type][id];  
-};
-
-
-
-function IDGenerator(){
-  this._id = 0;
-}
-
-IDGenerator.prototype.new = function(){
-  return this._id++;
-};
-
-
-function _ScheduleController(){
-  this.base = null;
-  this.group = null;
-}
-
-_ScheduleController.prototype.set_base = function(name, status){
-  if(this.base[name] !== undefined)
-    this.base[name].status = status;
-};
-
-_ScheduleController.prototype.commit_to_group = function(){
-  
-};
-
-_ScheduleController.prototype.set_longtap = function(status){
-  for(var name in this.base){
-    if(name.indexOf('longtap') === 0 ){
-      this.base[name].status = status;
-    }
-  }
-};
-
-function _TimerController(){
-  //储存引用
-  // this.longtap_debounce = null;
-  this.list = {};
-}
-
-_TimerController.prototype.start = function(name, delay){
-  var _callback;
-  var _delay;
-  var self = this;
-
-  function _warp_callback(func){
-    _callback = function(){
-      func();
-      this.list[name] = null;
-    };
-  }
-
-  //一些预设的timer定义,一些执行流的定义不应该嵌套到其他的执行流当中的
-  if(name === 'longtap_debounce'){
-    _delay = delay || 20;
-    _warp_callback(function(){
-      var longtap_ids = [];
-      // 更新所有longtap的状态
-      for(var name in _schedule.base){
-        if(name.indexOf('longtap') === 0 ){
-          _schedule.base[name].status = _STATUS_START;
-          longtap_ids.push(name);
-        }
-      }
-      
-      // 更新triggerlist
-      _triggerlist = longtap_ids;
-  
-      // 触发一个longtap start 的冒泡
-      _start_bus_bubble({
-        type: 'longtap'
-      });
-      
-      // 设置longtap end timer,这个循环还是不提前了,复用了,行为上面不合理感觉
-      longtap_ids.forEach(function(longtap_id){
-        self.start(longtap_id, _schedule.base[longtap_id].threshold);
-      });
-    });
-  }else if(name.indexOf('longtap') === 0){
-    _delay = delay;
-    _warp_callback(function(){
-      // 更新schedule的状态
-      _schedule.set_base(name, _STATUS_END);
-
-      // 更新triggerlist
-      _triggerlist = [name];
-
-      // 触发一个longtap start 的冒泡即可
-      _start_bus_bubble({
-        type: 'longtap'
-      });
-    });
-  }
-
-  return this.list[name] = setTimeout(_callback, _delay);
-};
-
-_TimerController.prototype.stop = function(name){
-  if(this.list[name] !== null)
-    return clearTimeout(this.list[name]);
-};
