@@ -29,6 +29,7 @@ var controller = addEvent(document.createElement('div'), {
   longtapThreshold: Number,//longtap间隔时间,暂定
   startWidth: String,//在不同的事件有不同的含义,快照值
   endWidth: String,//快照值
+  ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发
 
   //triggerRegister
   start: _start,
