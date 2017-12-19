@@ -21,8 +21,8 @@ EventController.prototype.disable = function(){
 EventController.prototype.set = function(key, value){
   var need_to_sync_key = [
     'finger',
-    'startWidth',
-    'endWidth',
+    'startWith',
+    'endWith',
     'group',
     'repeat'
   ];

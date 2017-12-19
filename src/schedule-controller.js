@@ -79,8 +79,8 @@ ScheduleController.prototype.write_base = function(config){
     };
 
     if(EVENT[type].type === TYPE_CONTINUOUS){
-      this.base[type].startWidth = undefined;
-      this.base[type].endWidth = undefined;
+      this.base[type].startWith = undefined;
+      this.base[type].endWith = undefined;
     }
   }
 };

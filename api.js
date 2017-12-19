@@ -17,6 +17,7 @@ var type = [
 var controller = addEvent(document.createElement('div'), {
   type: type,
   //config
+  disable: Boolean,
   repeat: Number,
   finger: Number,
   after: {//其含义是在一个group内某个事件之后,所以必须是基事件,但是需要支持after的嵌套..不支持,不想增加复杂度了
@@ -27,9 +28,9 @@ var controller = addEvent(document.createElement('div'), {
   }, //一般是longtap
 
   longtapThreshold: Number,//longtap间隔时间,暂定
-  startWidth: String,//在不同的事件有不同的含义,快照值
-  endWidth: String,//快照值
-  ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发
+  startWith: String,//在不同的事件有不同的含义,快照值
+  endWith: String,//快照值
+  ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发, 这层灵活性先不提供了
 
   //triggerRegister
   start: _start,
@@ -72,8 +73,8 @@ var groupDemo = addEvent(document.createElement('div'), {
       longtapThreshold: 700
     },{
       type: 'swipe',
-      startWidth: 'left',
-      endWidth: 'right'
+      startWith: 'left',
+      endWith: 'right'
     },{
       type: 'group',
       group: [

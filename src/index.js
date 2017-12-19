@@ -116,18 +116,50 @@ function bus(evt){
   // 消化triggerlist
   triggerlist.forEach(function(groupId){
     // triggerlist仅仅包含gourp了
-    var info = $dom.__event.list[ON_FINGER];
-    var base, listener;
-    if(info.groupId === groupId){
-      // 触发咯
-      base = schedule.base[get_base_id(info.group[info.group.length-1].config)];
-      listener = info.config[STATUS_TO_STRING(base.status)];
-      
-      if (group_progress !== max_group_len && base.status === STATUS_END) {
-        // 意味着end事件需要压栈
+    var grouplist = $dom.__event.list[ON_FINGER];
+    
+    for (let id in grouplist) {
+      let info = grouplist[id];
+      if(info.groupId === groupId){
+        // 触发咯
+        let base = schedule.base[get_base_id(info.group[info.group.length-1].config)];
+        let listener = info.config[STATUS_TO_STRING(base.status)];
         
-      } else {
-        listener instanceof Function && listener.call($dom, evt);
+        if (group_progress !== max_group_len && base.status === STATUS_END) {
+          // 意味着end事件需要压栈
+          
+        } else {
+          if (
+            // disable
+            (
+              info.config.disable === true 
+            ) ||
+            // startWith
+            (
+              base.status === STATUS_START &&
+              info.config.startWith !== undefined &&
+              info.config.startWith !== base.startWith
+            ) ||
+            // endWith
+            (
+              base.status === STATUS_END &&
+              info.config.endWith !== undefined &&
+              info.config.endWith !== base.endWith
+            ) ||
+            // finger
+            (
+              info.config.finger !== base.finger
+            ) ||
+            // after
+            (
+              info.config.after !== undefined &&
+              schedule.base[get_base_id(info.config.after)].status !== STATUS_END
+            )
+          )
+            continue;
+          
+          listener instanceof Function && listener.call($dom, evt);
+        }
       }
     }
   });

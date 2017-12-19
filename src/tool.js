@@ -50,12 +50,12 @@ export function get_base_id(config){
 
   if(type === TYPE_CONTINUOUS){
     opts.push({
-      key: 'startWidth',
-      value: config.startWidth
+      key: 'startWith',
+      value: config.startWith
     });
     opts.push({
-      key: 'endWidth',
-      value: config.endWidth
+      key: 'endWith',
+      value: config.endWith
     });
   }
 
