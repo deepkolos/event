@@ -105,3 +105,7 @@ groupDemo.set('group', [
 ]);
 groupDemo.enable();
 groupDemo.removeEvent();
+
+
+//如果遇到[1] [1,2] 基事件描述1相同, 仅仅阻塞的是end事件
+//就是[1]的start,move事件依然会触发的, 至于是触发end, 还是cancel就需要看

@@ -86,6 +86,23 @@ const EVENT = {
   }
 };
 
+const STATUS_STRINGS = {
+  '0': 'init',
+  '-1': 'start',
+  '-2': 'move',
+  '-3': 'end',
+  '-4': 'cancel'
+};
+
+function STATUS_TO_STRING(code){
+  if(STATUS_STRINGS[code])
+    return STATUS_STRINGS[code];
+  if(parseInt(code) > 0)
+    return 'during_group';
+  
+  return undefined;
+}
+
 export {
   EVENT,
 
@@ -102,5 +119,7 @@ export {
   TYPE_UNKNOW,
   TYPE_CONTINUOUS,
   TYPE_MONENT,
-  DEFAULT_LONGTAP_THRESHOLD
+  DEFAULT_LONGTAP_THRESHOLD,
+
+  STATUS_TO_STRING
 };

@@ -18,7 +18,9 @@ import {
   TYPE_UNKNOW,/* eslint no-unused-vars: 0 */
   TYPE_CONTINUOUS,
   TYPE_MONENT,/* eslint no-unused-vars: 0 */
-  DEFAULT_LONGTAP_THRESHOLD
+  DEFAULT_LONGTAP_THRESHOLD,
+
+  STATUS_TO_STRING
 } from './define';
 
 
@@ -100,19 +102,34 @@ var dom_involved;// [] order from bubble start to end
 var bubble_started = false;
 var last_dom_involved;
 var group_progress = 0;
+var max_group_len = 0;
 var during_gap = false;
 var actived_finger_num = 0;
 var timer = new TimerController(schedule, start_bus_bubble);
 
 function bus(evt){
   var $dom = this;
+
   // 原生事件,定时器事件都走这个bus
   triggerbubble(this, evt);
 
   // 消化triggerlist
-  triggerlist.forEach(function(id){
+  triggerlist.forEach(function(groupId){
     // triggerlist仅仅包含gourp了
-
+    var info = $dom.__event.list[ON_FINGER];
+    var base, listener;
+    if(info.groupId === groupId){
+      // 触发咯
+      base = schedule.base[get_base_id(info.group[info.group.length-1].config)];
+      listener = info.config[STATUS_TO_STRING(base.status)];
+      
+      if (group_progress !== max_group_len && base.status === STATUS_END) {
+        // 意味着end事件需要压栈
+        
+      } else {
+        listener instanceof Function && listener.call($dom, evt);
+      }
+    }
   });
 }
 
@@ -247,16 +264,24 @@ function update_base_status(evt){
 }
 
 function update_triggerlist(evt){
-  // 嗯这样逻辑就统一了
-  // 根据目前的base状态去做把适合的group导出出来咯
-  // 我需要想一下这个时候的group的结构,记得是经过扁平化的
-  
+  triggerlist = [];
   // goroup的触发的规则
-  // 先找出这次满足触发条件的,group
-  
-  // 找出可能符合进阶的group
-  // group之前的触发规则也是在这里做
+  // 仅仅是把在于末尾的group添加到triggerlist, 然后更新一些状态变量, 具体的触发还是在triggerlistConsumer
+  max_group_len = group_progress;
+  var tmp_len, group;
 
+  for (let groupId in schedule.group) {
+    group = schedule.group[groupId];
+    if (group.status === group_progress) {
+      tmp_len = group.group.length - 1;
+
+      if(tmp_len > max_group_len)
+        max_group_len = tmp_len;
+
+      if (group.status === group.group.length-1)
+        triggerlist.push(groupId);
+    }
+  }
 }
 
 //update trigger status, 这里仅仅做更新triggerlist
@@ -274,7 +299,6 @@ function touchstart (evt){
 }
 
 function touchmove(evt){
-  triggerlist = [];
   schedule.set_base('tap', STATUS_CANCEL);
   schedule.set_base('longtap', STATUS_CANCEL);
   schedule.set_base('swipe', STATUS_START);
