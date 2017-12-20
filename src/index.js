@@ -103,7 +103,6 @@ var bubble_started = false;
 var last_dom_involved;
 var group_progress = 0;
 var max_group_len = 0;
-var during_gap = false;
 var actived_finger_num = 0;
 var timer = new TimerController(schedule, start_bus_bubble);
 
@@ -114,6 +113,7 @@ function bus(evt){
   triggerbubble(this, evt);
 
   // 消化triggerlist
+  // 这里的循环可以优化
   triggerlist.forEach(function(groupId){
     // triggerlist仅仅包含gourp了
     var grouplist = $dom.__event.list[ON_FINGER];
@@ -129,6 +129,12 @@ function bus(evt){
           
         } else if (info.config.disable !== true ) {
           listener instanceof Function && listener.call($dom, evt);
+
+          // start补一帧move, TYPE_CONTINUOUS的事件
+          EVENT[schedule.group[groupId].group[group_progress].type].type === TYPE_CONTINUOUS &&
+          group.status === STATUS_START &&
+          info.config.move instanceof Function && 
+            info.config.move.call($dom, evt);
         }
       }
     }
@@ -179,64 +185,45 @@ function groupstart(evt){
   });
   last_dom_involved = dom_involved[dom_involved.length-1];
 
-  //判断是否重新schedule
-  if (group_progress === 0)
-    //生成schedule
-    dom_involved.forEach(function($dom){
-      var groups = $dom.__event.list[ON_FINGER];
-      var info, base;
+  //生成schedule
+  dom_involved.forEach(function($dom){
+    var groups = $dom.__event.list[ON_FINGER];
+    var info, base;
 
-      //需要判断是否需要重新生成group
-      if(check_need_of_regenerate_gourp())
-        for(let id in groups)
-          schedule.write_group(groups[id]);
+    //需要判断是否需要重新生成group
+    if(group_progress === 0)
+      for(let id in groups)
+        schedule.write_group(groups[id]);
 
-      //根据现在的group,初始化base
-      //每次都会清空状态
-      schedule.empty_base();
+    //根据现在的group,初始化base
+    //每次都会清空状态
+    schedule.empty_base();
 
-      //更具目前group的进度去初始化
-      for(let id in schedule.group){
-        base = schedule.group[id].group[group_progress];
-        //基事件使用type->的映射就可以了,细微的状态更新方便
-        schedule.write_base(base);
-        if(base.after !== undefined)
-          schedule.write_base(base.after);
-      }
-      
-      //初始化完毕
-      
-      // 触发bubbulestart
-    });
+    //更具目前group的进度去初始化
+    for(let id in schedule.group){
+      base = schedule.group[id].group[group_progress];
+      //基事件使用type->的映射就可以了,细微的状态更新方便
+      schedule.write_base(base);
+      if(base.after !== undefined)
+        schedule.write_base(base.after);
+    }
+    
+    //初始化完毕
+    
+    // 触发bubbulestart
+  });
 }
 
 function groupend(evt){
   // gourp commit
   schedule.commit_to_group(group_progress);
   // 设置延迟groupgap的timer
-  
+
   group_progress = group_progress === max_group_len ? 0 : group_progress+1;
 }
 
 
 //工具函数, 不过不太适合拆分到tool里面
-function check_need_of_regenerate_gourp(){
-  //判断标准是是否目前group有中间状态,并且是否在gap的期间
-  if(during_gap === false)
-    return true;
-  
-  //检查是否有中间状态
-  var group;
-  for(let id in schedule.group){
-    group = schedule.group[id];
-
-    //group的规则和base的规则有区别,在_STATUS_的部分是指向对应group末尾事件的触发
-    //其中的到因为触发groupend的时候,状态都会被更新到cancel/end,所以不会出现start/move的情况
-    if(group.status > 0)
-      return true;
-  }
-}
-
 function start_bus_bubble(evt){
   bubblestart(evt);
 
@@ -281,14 +268,21 @@ function update_triggerlist(evt){
     if (group.status === group_progress) {
       tmp_len = group.group.length - 1;
 
-      if(tmp_len > max_group_len)
+      if (tmp_len > max_group_len)
         max_group_len = tmp_len;
 
-      if (group.status === group.group.length-1) {
+      // 同步base的状态到group里面
+      if (
+        group.status === group.group.length-1 || 
+        group.status === STATUS_START || 
+        group.status === STATUS_MOVE
+      ) {
         base_config = group.group[group.status];
         base = schedule.base[get_type_id(base_config)];
+
+        if (base.status === STATUS_INIT)
+          continue;
         
-        // 根据那个base的config去
         // 需要处理after, startWith, endWith, finger
         if (
           // startWith
@@ -303,20 +297,23 @@ function update_triggerlist(evt){
             base_config.endWith !== undefined &&
             base_config.endWith !== base.endWith
           ) ||
-          // finger
-          (
-            base_config.finger !== base.finger
-          ) ||
           // after
           (
             base_config.after !== undefined &&
             schedule.base[get_type_id(base_config.after)].status !== STATUS_END
           )
-        )
-          continue;
+        ) {
+          group.status = STATUS_END;
+        } else {
+          group.status = base.status;
+        }
 
-        triggerlist.push(groupId);
-        group.status = base.status;
+        if (
+          base_config.finger !== undefined && 
+          base_config.finger === base.finger ||
+          base_config.finger === undefined
+        )
+          triggerlist.push(groupId);
       }
     }
   }
@@ -334,23 +331,28 @@ function touchstart (evt){
 
   //longtap 的16ms的定时器
   timer.start('longtap_debounce');
+  schedule.set_base('longtap', STATUS_INIT);
 }
 
 function touchmove(evt){
   schedule.set_base('tap', STATUS_CANCEL);
   schedule.set_base('longtap', STATUS_CANCEL);
-  schedule.set_base('swipe', STATUS_START);
   schedule.set_base('swipe', STATUS_MOVE);
+  schedule.set_base('swipe', STATUS_START);
+  // 将会在start里面补一帧的move
 
   if(evt.touches.length > 1){
+    schedule.set_base('pinch', STATUS_MOVE);
     schedule.set_base('pinch', STATUS_START);
     schedule.set_base('rotate', STATUS_MOVE);
+    schedule.set_base('rotate', STATUS_START);
   }
 }
 
 function touchend(evt){
   if(evt.touches.length === 1)
     schedule.set_base('tap', STATUS_END);
+  schedule.set_base('longtap', STATUS_CANCEL);
 }
 
 function touchcancel(evt){

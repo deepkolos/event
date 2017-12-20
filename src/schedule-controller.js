@@ -16,21 +16,25 @@ function ScheduleController(){
 
 ScheduleController.prototype.set_base = function(type, set_status){
   var status;
-  if(this.base[type]){
+  if(this.base[type] !== undefined){
     status = this.base[type].status;
 
-    if(set_status === STATUS_INIT)
-      throw 'init不应该触发事件的';
+    if (set_status === STATUS_INIT) {
+      this.base[type].status = STATUS_INIT;
+      return;
+    }
 
-    if(set_status === STATUS_MOVE){
-      if(this.base[type] !== undefined)
-        this.base[type].status = status;
+    if(set_status === STATUS_MOVE && this.base[type].status !== STATUS_INIT){
+      this.base[type].status = set_status;
 
     // 要求状态往前推进
     }else if(status > set_status){
 
-      // 不允许init->cancel
-      if(status === STATUS_INIT && set_status === STATUS_CANCEL)
+      // 不允许init->cancel, end->cancel
+      if(
+        status === STATUS_INIT && set_status === STATUS_CANCEL ||
+        status === STATUS_END && set_status === STATUS_CANCEL
+      )
         return;
 
       if(type === 'longtap'){
@@ -40,16 +44,14 @@ ScheduleController.prototype.set_base = function(type, set_status){
           status = this.base[id].status;
 
           if(id.indexOf('longtap') === 0 && status !== STATUS_INIT){
-            if(this.base[type] !== undefined)
-              this.base[type].status = status;
+            this.base[type].status = set_status;
           }
         });
         return;
       }
 
       //start/end/cancel, 包括longtap_xxx
-      if(this.base[type] !== undefined)
-        this.base[type].status = status;
+      this.base[type].status = set_status;
     }
   }
 };

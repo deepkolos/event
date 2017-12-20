@@ -1,6 +1,6 @@
 import { setTimeout } from "core-js/library/web/timers";
 import { clearTimeout } from "timers";
-import { STATUS_START, STATUS_END} from './define';
+import { STATUS_START, STATUS_END, STATUS_CANCEL} from './define';
 
 export function TimerController(schedule, start_bus_bubble){
   //储存引用
@@ -55,6 +55,7 @@ TimerController.prototype.start = function(name, delay){
   }else if(name.indexOf('longtap') === 0){
     _delay = delay;
     _warp_callback(function(){
+      schedule.set_base('tap', STATUS_CANCEL);
       start_bus_bubble({
         type: 'longtap',
         status: STATUS_END,
