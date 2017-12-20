@@ -1,4 +1,4 @@
-import { make_flat_group, get_base_id, get_group_Id } from './tool';
+import { make_flat_group, get_group_Id, get_type_id } from './tool';
 import { EventController } from './event-controller';
 import { ScheduleController } from './schedule-controller';
 import { TimerController } from './timer-controller';
@@ -121,43 +121,13 @@ function bus(evt){
     for (let id in grouplist) {
       let info = grouplist[id];
       if(info.groupId === groupId){
-        // 触发咯
-        let base = schedule.base[get_base_id(info.group[info.group.length-1].config)];
-        let listener = info.config[STATUS_TO_STRING(base.status)];
+        let group = schedule.group[groupId];
+        let listener = info.config[STATUS_TO_STRING(group.status)];
         
-        if (group_progress !== max_group_len && base.status === STATUS_END) {
+        if (group_progress !== max_group_len && group.status === STATUS_END) {
           // 意味着end事件需要压栈
           
-        } else {
-          if (
-            // disable
-            (
-              info.config.disable === true 
-            ) ||
-            // startWith
-            (
-              base.status === STATUS_START &&
-              info.config.startWith !== undefined &&
-              info.config.startWith !== base.startWith
-            ) ||
-            // endWith
-            (
-              base.status === STATUS_END &&
-              info.config.endWith !== undefined &&
-              info.config.endWith !== base.endWith
-            ) ||
-            // finger
-            (
-              info.config.finger !== base.finger
-            ) ||
-            // after
-            (
-              info.config.after !== undefined &&
-              schedule.base[get_base_id(info.config.after)].status !== STATUS_END
-            )
-          )
-            continue;
-          
+        } else if (info.config.disable !== true ) {
           listener instanceof Function && listener.call($dom, evt);
         }
       }
@@ -210,37 +180,42 @@ function groupstart(evt){
   last_dom_involved = dom_involved[dom_involved.length-1];
 
   //判断是否重新schedule
-  
-  //生成schedule
-  dom_involved.forEach(function($dom){
-    var groups = $dom.__event.list[ON_FINGER];
-    var info, base;
+  if (group_progress === 0)
+    //生成schedule
+    dom_involved.forEach(function($dom){
+      var groups = $dom.__event.list[ON_FINGER];
+      var info, base;
 
-    //需要判断是否需要重新生成group
-    if(check_need_of_regenerate_gourp())
-      for(let id in groups)
-        schedule.write_group(groups[id]);
+      //需要判断是否需要重新生成group
+      if(check_need_of_regenerate_gourp())
+        for(let id in groups)
+          schedule.write_group(groups[id]);
 
-    //根据现在的group,初始化base
-    //每次都会清空状态
-    schedule.empty_base();
+      //根据现在的group,初始化base
+      //每次都会清空状态
+      schedule.empty_base();
 
-    //更具目前group的进度去初始化
-    for(let id in schedule.group){
-      base = schedule.group[id].group[group_progress];
-      //基事件使用type->的映射就可以了,细微的状态更新方便
-      schedule.write_base(base);
-      if(base.after !== undefined)
-        schedule.write_base(base.after);
-    }
-    
-    //初始化完毕
-    
-  });
+      //更具目前group的进度去初始化
+      for(let id in schedule.group){
+        base = schedule.group[id].group[group_progress];
+        //基事件使用type->的映射就可以了,细微的状态更新方便
+        schedule.write_base(base);
+        if(base.after !== undefined)
+          schedule.write_base(base.after);
+      }
+      
+      //初始化完毕
+      
+      // 触发bubbulestart
+    });
 }
 
 function groupend(evt){
-
+  // gourp commit
+  schedule.commit_to_group(group_progress);
+  // 设置延迟groupgap的timer
+  
+  group_progress = group_progress === max_group_len ? 0 : group_progress+1;
 }
 
 
@@ -298,9 +273,8 @@ function update_base_status(evt){
 function update_triggerlist(evt){
   triggerlist = [];
   // goroup的触发的规则
-  // 仅仅是把在于末尾的group添加到triggerlist, 然后更新一些状态变量, 具体的触发还是在triggerlistConsumer
   max_group_len = group_progress;
-  var tmp_len, group;
+  var tmp_len, group, base, base_config;
 
   for (let groupId in schedule.group) {
     group = schedule.group[groupId];
@@ -310,8 +284,40 @@ function update_triggerlist(evt){
       if(tmp_len > max_group_len)
         max_group_len = tmp_len;
 
-      if (group.status === group.group.length-1)
+      if (group.status === group.group.length-1) {
+        base_config = group.group[group.status];
+        base = schedule.base[get_type_id(base_config)];
+        
+        // 根据那个base的config去
+        // 需要处理after, startWith, endWith, finger
+        if (
+          // startWith
+          (
+            base.status === STATUS_START &&
+            base_config.startWith !== undefined &&
+            base_config.startWith !== base.startWith
+          ) ||
+          // endWith
+          (
+            base.status === STATUS_END &&
+            base_config.endWith !== undefined &&
+            base_config.endWith !== base.endWith
+          ) ||
+          // finger
+          (
+            base_config.finger !== base.finger
+          ) ||
+          // after
+          (
+            base_config.after !== undefined &&
+            schedule.base[get_type_id(base_config.after)].status !== STATUS_END
+          )
+        )
+          continue;
+
         triggerlist.push(groupId);
+        group.status = base.status;
+      }
     }
   }
 }

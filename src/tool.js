@@ -86,3 +86,11 @@ export function get_group_Id(config){
 
   return opts_string.join(',');
 }
+
+export function get_type_id(config){
+  var type = config.type;
+  if(type === 'longtap')
+    return type+'_'+config.longtapThreshold;
+  
+  return type;
+}

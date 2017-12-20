@@ -3,8 +3,10 @@ import {
   TYPE_CONTINUOUS,
   STATUS_INIT,
   STATUS_MOVE,
-  STATUS_CANCEL
+  STATUS_CANCEL,
+  STATUS_END
 } from './define';
+import { get_type_id } from './tool';
 
 
 function ScheduleController(){
@@ -52,8 +54,17 @@ ScheduleController.prototype.set_base = function(type, set_status){
   }
 };
 
-ScheduleController.prototype.commit_to_group = function(){
-  
+ScheduleController.prototype.commit_to_group = function(current_process){
+  for(var gourpid in this.group) {
+    let group = this.group[gourpid];
+
+    if (
+      group.status === current_process && 
+      this.base[get_type_id(group.group[current_process])].status === STATUS_END
+    ) {
+      group.status++;
+    }
+  }
 };
 
 ScheduleController.prototype.empty_base = function(){
@@ -77,11 +88,11 @@ ScheduleController.prototype.write_base = function(config){
       status: STATUS_INIT,
       finger: undefined
     };
+  }
 
-    if(EVENT[type].type === TYPE_CONTINUOUS){
-      this.base[type].startWith = undefined;
-      this.base[type].endWith = undefined;
-    }
+  if(EVENT[type].type === TYPE_CONTINUOUS){
+    this.base[type].startWith = undefined;
+    this.base[type].endWith = undefined;
   }
 };
 
