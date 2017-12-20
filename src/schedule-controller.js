@@ -19,7 +19,7 @@ ScheduleController.prototype.set_base = function(type, set_status){
   if(this.base[type] !== undefined){
     status = this.base[type].status;
 
-    if (set_status === STATUS_INIT) {
+    if (set_status === STATUS_INIT && status !== STATUS_END) {
       this.base[type].status = STATUS_INIT;
       return;
     }

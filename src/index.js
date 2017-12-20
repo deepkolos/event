@@ -104,6 +104,7 @@ var last_dom_involved;
 var group_progress = 0;
 var max_group_len = 0;
 var actived_finger_num = 0;
+var bubbleend_task = [];
 var timer = new TimerController(schedule, start_bus_bubble);
 
 function bus(evt){
@@ -155,6 +156,8 @@ function triggerbubble($nowDom, evt){
 }
 
 function bubblestart(evt){
+  bubbleend_task = [];
+
   //尝试去触发groupstart
   if(evt.touches.length === 1 && evt.type === 'touchstart'){
     groupstart(evt);
@@ -165,7 +168,6 @@ function bubblestart(evt){
 
   //事件发生源,生成triggerlist
   update_triggerlist(evt);
-
 }
 
 function bubbleend(evt){
@@ -173,11 +175,16 @@ function bubbleend(evt){
   if(evt.touches.length === 1 && evt.type === 'touchend'){
     groupend(evt);
   }
+
+  bubbleend_task.forEach(function(func){
+    func();
+  });
 }
 
 function groupstart(evt){
   //初始化这次group涉及涉及的dom
   dom_involved = [];
+  actived_finger_num = 0;
   evt.path.forEach(function($dom){
     if($dom.__event !== undefined){
       dom_involved.push($dom);
@@ -322,6 +329,7 @@ function update_triggerlist(evt){
 //update trigger status, 这里仅仅做更新triggerlist
 function touchstart (evt){
   var touch_num = evt.touches.length;
+  var last_actived_finger_num = actived_finger_num;
   //更新finger信息
   actived_finger_num = Math.max(actived_finger_num, touch_num);
 
@@ -331,7 +339,12 @@ function touchstart (evt){
 
   //longtap 的16ms的定时器
   timer.start('longtap_debounce');
-  schedule.set_base('longtap', STATUS_INIT);
+  if (actived_finger_num > last_actived_finger_num) {
+    bubbleend_task.push(function(){
+      schedule.set_base('longtap', STATUS_INIT);
+    });
+    schedule.set_base('longtap', STATUS_CANCEL);
+  }
 }
 
 function touchmove(evt){
