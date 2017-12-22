@@ -81,14 +81,12 @@ ScheduleController.prototype.write_base = function(config){
     if(this.base[type+'_'+config.longtapThreshold] === undefined){
       this.base[type] = {
         status: STATUS_INIT,
-        finger: undefined,
         threshold: config.longtapThreshold
       };
     }
   }else if(this.base[type] === undefined){
     this.base[type] = {
-      status: STATUS_INIT,
-      finger: undefined
+      status: STATUS_INIT
     };
   }
 

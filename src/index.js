@@ -366,7 +366,7 @@ function update_triggerlist(evt){
 
       if (
         base_config.finger !== undefined && 
-        base_config.finger === base.finger ||
+        base_config.finger === evt.touches.length ||
         base_config.finger === undefined
       ) {
         if (group_progress < max_group_len && group.status === STATUS_END) {
