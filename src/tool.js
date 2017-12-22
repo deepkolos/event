@@ -94,3 +94,7 @@ export function get_type_id(config){
   
   return type;
 }
+
+export function last_arr(num, arr){
+  return arr[arr.length - num];
+}

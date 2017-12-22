@@ -1,6 +1,7 @@
 import { setTimeout } from "core-js/library/web/timers";
 import { clearTimeout } from "timers";
 import { STATUS_START, STATUS_END, STATUS_CANCEL} from './define';
+import { group_gap_trigger } from './index';
 
 export function TimerController(schedule, start_bus_bubble){
   //储存引用
@@ -62,6 +63,9 @@ TimerController.prototype.start = function(name, delay){
         name: name
       });
     });
+  }else if(name === 'group_gap') {
+    _delay = 250;
+    _warp_callback(group_gap_trigger);
   }
 
   return this.list[name] = setTimeout(_callback, _delay);

@@ -1,4 +1,4 @@
-import { make_flat_group, get_group_Id, get_type_id } from './tool';
+import { make_flat_group, get_group_Id, get_type_id, last_arr } from './tool';
 import { EventController } from './event-controller';
 import { ScheduleController } from './schedule-controller';
 import { TimerController } from './timer-controller';
@@ -19,6 +19,7 @@ import {
   TYPE_CONTINUOUS,
   TYPE_MONENT,/* eslint no-unused-vars: 0 */
   DEFAULT_LONGTAP_THRESHOLD,
+  DEFAULT_TAP_FINGER,
 
   STATUS_TO_STRING
 } from './define';
@@ -55,6 +56,11 @@ function addEvent($dom, config={}){
   if(type === 'longtap'){
     if(config.longtapThreshold === undefined)
       config.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
+  }
+
+  if(type === 'tap'){
+    if(config.finger === undefined)
+      config.finger = DEFAULT_TAP_FINGER;
   }
 
   var list = $dom.__event.list;
@@ -105,13 +111,21 @@ var group_progress = 0;
 var max_group_len = 0;
 var actived_finger_num = 0;
 var bubbleend_task = [];
+var group_gap_stack = [];//储存groupid因为还有更长的group而已延迟触发的end事件
 var timer = new TimerController(schedule, start_bus_bubble);
+var evt_stack = {
+  start: [],
+  // move: [],
+  end: []
+};
 
-function bus(evt){
+function bus(evt, usePatch){
   var $dom = this;
 
-  // 原生事件,定时器事件都走这个bus
-  triggerbubble(this, evt);
+  if (usePatch !== true) {
+    // 原生事件,定时器事件都走这个bus
+    triggerbubble(this, evt);
+  }
 
   // 消化triggerlist
   // 这里的循环可以优化
@@ -132,7 +146,7 @@ function bus(evt){
           listener instanceof Function && listener.call($dom, evt);
 
           // start补一帧move, TYPE_CONTINUOUS的事件
-          EVENT[schedule.group[groupId].group[group_progress].type].type === TYPE_CONTINUOUS &&
+          EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
           group.status === STATUS_START &&
           info.config.move instanceof Function && 
             info.config.move.call($dom, evt);
@@ -155,36 +169,47 @@ function triggerbubble($nowDom, evt){
   }
 }
 
-function bubblestart(evt){
+function bubblestart(evt, patch){
   bubbleend_task = [];
-
-  //尝试去触发groupstart
-  if(evt.touches.length === 1 && evt.type === 'touchstart'){
-    groupstart(evt);
-  }
+  triggerlist = [];
 
   //更新基事件的
-  update_base_status(evt);
+  if(patch instanceof Function){
+    patch();
+  }else{
+    //尝试去触发groupstart
+    if(evt.touches.length === 1 && evt.type === 'touchstart'){
+      groupstart(evt);
+    }
+    update_base_status(evt);
+  }
 
   //事件发生源,生成triggerlist
   update_triggerlist(evt);
 }
 
-function bubbleend(evt){
-  //尝试去触发groupsend
-  if(evt.touches.length === 1 && evt.type === 'touchend'){
-    groupend(evt);
+function bubbleend(evt, patch){
+  if (patch instanceof Function) {
+    patch();
+  } else {
+    //尝试去触发groupsend
+    if(evt.touches.length === 1 && evt.type === 'touchend'){
+      groupend(evt);
+    }
   }
-
-  bubbleend_task.forEach(function(func){
-    func();
-  });
 }
 
 function groupstart(evt){
   //初始化这次group涉及涉及的dom
   dom_involved = [];
   actived_finger_num = 0;
+  timer.stop('group_gap');
+  //推迟的group触发cancel
+  group_gap_stack.forEach(function(groupId){
+    triggerlist.push(groupId);
+    //并且设置cancel事件
+    schedule.group[groupId].status = STATUS_CANCEL;
+  });
   evt.path.forEach(function($dom){
     if($dom.__event !== undefined){
       dom_involved.push($dom);
@@ -229,14 +254,24 @@ function groupend(evt){
   group_progress = group_progress === max_group_len ? 0 : group_progress+1;
 }
 
+function group_gap_trigger () {
+  triggerlist = group_gap_stack;
+  group_gap_stack = [];//虽然js内置的堆栈的操作,但是在代码的语义上面欠缺
+  start_bus_bubble({
+    type: 'group_gap'
+  });
+}
+
 
 //工具函数, 不过不太适合拆分到tool里面
-function start_bus_bubble(evt){
-  bubblestart(evt);
+function start_bus_bubble(evt, startPatch, endPatch){
+  bubblestart(evt, startPatch);
 
   dom_involved.forEach(function($dom){
-    $dom.__event.bus(evt);
+    $dom.__event.bus(evt, startPatch !== undefined || endPatch !== undefined);
   });
+
+  bubbleend(evt, endPatch);
 }
 
 function update_base_status(evt){
@@ -261,15 +296,21 @@ function update_base_status(evt){
   case 'longtap':
     longtap(evt);
     break;
+
+  case 'group_gap':
+    group_gap(evt);
+    break;
   }
+  
 }
 
 function update_triggerlist(evt){
-  triggerlist = [];
   // goroup的触发的规则
   max_group_len = group_progress;
   var tmp_len, group, base, base_config;
+  var groupid_in_process = [];
 
+  // 找出max_group_len
   for (let groupId in schedule.group) {
     group = schedule.group[groupId];
     if (group.status === group_progress) {
@@ -277,53 +318,66 @@ function update_triggerlist(evt){
 
       if (tmp_len > max_group_len)
         max_group_len = tmp_len;
-
-      // 同步base的状态到group里面
-      if (
-        group.status === group.group.length-1 || 
-        group.status === STATUS_START || 
-        group.status === STATUS_MOVE
-      ) {
-        base_config = group.group[group.status];
-        base = schedule.base[get_type_id(base_config)];
-
-        if (base.status === STATUS_INIT)
-          continue;
-        
-        // 需要处理after, startWith, endWith, finger
-        if (
-          // startWith
-          (
-            base.status === STATUS_START &&
-            base_config.startWith !== undefined &&
-            base_config.startWith !== base.startWith
-          ) ||
-          // endWith
-          (
-            base.status === STATUS_END &&
-            base_config.endWith !== undefined &&
-            base_config.endWith !== base.endWith
-          ) ||
-          // after
-          (
-            base_config.after !== undefined &&
-            schedule.base[get_type_id(base_config.after)].status !== STATUS_END
-          )
-        ) {
-          group.status = STATUS_END;
-        } else {
-          group.status = base.status;
-        }
-
-        if (
-          base_config.finger !== undefined && 
-          base_config.finger === base.finger ||
-          base_config.finger === undefined
-        )
-          triggerlist.push(groupId);
-      }
+      
+      groupid_in_process.push(groupId);
     }
   }
+
+  // 更新triggerList
+  groupid_in_process.forEach(function(groupId){
+    group = schedule.group[groupId];
+
+    // 同步base的状态到group里面
+    if (
+      group.status === group.group.length-1 || 
+      group.status === STATUS_START || 
+      group.status === STATUS_MOVE
+    ) {
+      base_config = group.group[group.status];
+      base = schedule.base[get_type_id(base_config)];
+
+      if (base.status === STATUS_INIT)
+        return;
+      
+      // 需要处理after, startWith, endWith, finger
+      if (
+        // startWith
+        (
+          base.status === STATUS_START &&
+          base_config.startWith !== undefined &&
+          base_config.startWith !== base.startWith
+        ) ||
+        // endWith
+        (
+          base.status === STATUS_END &&
+          base_config.endWith !== undefined &&
+          base_config.endWith !== base.endWith
+        ) ||
+        // after
+        (
+          base_config.after !== undefined &&
+          schedule.base[get_type_id(base_config.after)].status !== STATUS_END
+        )
+      ) {
+        group.status = STATUS_CANCEL;
+      } else {
+        group.status = base.status;
+      }
+
+      if (
+        base_config.finger !== undefined && 
+        base_config.finger === base.finger ||
+        base_config.finger === undefined
+      ) {
+        if (group_progress < max_group_len && group.status === STATUS_END) {
+          // 把这次的触发压到堆栈里面去
+          group_gap_stack.push(groupId);
+        } else {
+          triggerlist.push(groupId);
+        }
+      }
+    }
+  });
 }
 
 //update trigger status, 这里仅仅做更新triggerlist
@@ -333,18 +387,30 @@ function touchstart (evt){
   //更新finger信息
   actived_finger_num = Math.max(actived_finger_num, touch_num);
 
-  //更新tap status->start
-  if(touch_num === 1)
+  if (actived_finger_num > last_actived_finger_num) {
+    evt_stack.start.push(evt);
+    // 使用最先手指变更的时候就好了
+    // 这样允许1->2 也可以兼容1->3的情况
+
+    start_bus_bubble(
+      last_arr(2, evt_stack.start), 
+      function(){// start patch
+        schedule.set_base('tap', STATUS_CANCEL);
+        schedule.set_base('longtap', STATUS_CANCEL);
+      },
+      function(){// end patch
+        schedule.set_base('longtap', STATUS_INIT);
+        schedule.set_base('tap', STATUS_INIT);
+      }
+    );
+
+    // 更新tap status->start, 这个是使用现有的tap的longtapThreshold来区别的所以是没有
+    // 这一层是源触发的bus
     schedule.set_base('tap', STATUS_START);
+  }
 
   //longtap 的16ms的定时器
   timer.start('longtap_debounce');
-  if (actived_finger_num > last_actived_finger_num) {
-    bubbleend_task.push(function(){
-      schedule.set_base('longtap', STATUS_INIT);
-    });
-    schedule.set_base('longtap', STATUS_CANCEL);
-  }
 }
 
 function touchmove(evt){
@@ -374,8 +440,18 @@ function touchcancel(evt){
 }
 
 function longtap(evt){
+  // 这里会触发longtap的start, end
+  // 也在这里做evt的包装,参数的包装
+  // 选择evt_stack.start末尾的一个作为基属性
+  var ref_evt = last_arr(1, evt_stack.start);
+  //复制一些可能用到的属性
+
   schedule.set_base(evt.name, evt.status);
 }
 
+function group_gap(evt){
+
+}
+
 export default addEvent;
-export { schedule, start_bus_bubble, addEvent };
+export { schedule, start_bus_bubble, addEvent, group_gap_trigger };
