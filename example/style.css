@@ -1,0 +1,10 @@
+*{
+  padding: 0;
+  margin: 0;
+}
+
+#box{
+  width: 200px;
+  height: 200px;
+  background: rgba(215, 0, 0, 1);
+}

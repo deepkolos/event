@@ -1,14 +1,11 @@
-import { setTimeout } from "core-js/library/web/timers";
-import { clearTimeout } from "timers";
 import { STATUS_START, STATUS_END, STATUS_CANCEL} from './define';
-import { group_gap_trigger } from './index';
+import { group_gap_trigger, schedule, start_bus_bubble, evt_stack } from './index';
+import { last_arr } from './tool';
 
-export function TimerController(schedule, start_bus_bubble){
+function TimerController(){
   //储存引用
   // this.longtap_debounce = null;
   this.list = {};
-  this.schedule = schedule;
-  this.start_bus_bubble = start_bus_bubble;
 }
 
 TimerController.prototype.stop = function(name){
@@ -20,19 +17,17 @@ TimerController.prototype.start = function(name, delay){
   var _callback;
   var _delay;
   var self = this;
-  var schedule = this.schedule;
-  var start_bus_bubble = this.start_bus_bubble;
 
   function _warp_callback(func){
     _callback = function(){
       func();
-      this.list[name] = null;
+      self.list[name] = null;
     };
   }
 
   //一些预设的timer定义,一些执行流的定义不应该嵌套到其他的执行流当中的
   if(name === 'longtap_debounce'){
-    _delay = delay || 20;
+    _delay = delay || 350;
     _warp_callback(function(){
       var longtap_ids = [];
 
@@ -41,13 +36,17 @@ TimerController.prototype.start = function(name, delay){
           longtap_ids.push(base_name);
         }
       }
-  
-      start_bus_bubble({
-        type: 'longtap',
-        status: STATUS_START,
-        name: 'longtap'
-      });
-      
+
+      if (longtap_ids.length !== 0){
+        // debugger;
+        start_bus_bubble({
+          type: 'longtap',
+          touches: last_arr(1, evt_stack.start).touches
+        }, function(){
+          schedule.set_base('longtap', STATUS_START);
+        });
+      }
+
       // 设置longtap end timer
       longtap_ids.forEach(function(longtap_id){
         self.start(longtap_id, schedule.base[longtap_id].threshold);
@@ -56,11 +55,12 @@ TimerController.prototype.start = function(name, delay){
   }else if(name.indexOf('longtap') === 0){
     _delay = delay;
     _warp_callback(function(){
-      schedule.set_base('tap', STATUS_CANCEL);
       start_bus_bubble({
         type: 'longtap',
-        status: STATUS_END,
-        name: name
+        touches: last_arr(1, evt_stack.start).touches
+      }, function(){
+        schedule.set_base(name, STATUS_END);
+        schedule.set_base('tap', STATUS_CANCEL);
       });
     });
   }else if(name === 'group_gap') {
@@ -70,3 +70,5 @@ TimerController.prototype.start = function(name, delay){
 
   return this.list[name] = setTimeout(_callback, _delay);
 };
+
+export default TimerController;

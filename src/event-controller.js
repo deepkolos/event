@@ -44,5 +44,7 @@ EventController.prototype.removeEvent = function(){
   if(on_which === ON_FINGER)
     delete $dom.__event.list[on_which][id];
   else
-    delete $dom.__event.list[on_which][type][id];  
+    delete $dom.__event.list[on_which][type][id];
 };
+
+export default EventController;

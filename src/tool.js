@@ -1,33 +1,33 @@
-import {TYPE_CONTINUOUS, EVENT} from './define';
+import { TYPE_CONTINUOUS, EVENT } from './define';
 
-export function make_flat_base(config){
+export function make_flat_base(config) {
   var repeat = config.repeat || 1;
   var result = [];
 
-  if(repeat !== undefined && repeat > 1){
-    for(var i = 0; i < repeat; i++){
-      result.push(Object.assign({}, config));
-    }
+  for (var i = 0; i < repeat; i++) {
+    result.push(Object.assign({}, config));
   }
+
   return result;
 }
 
-export function make_flat_group(config){
-  if(config.group === undefined || config.group instanceof Array === false)
-    return console.log('group配置有误');
-  
+export function make_flat_group(config) {
+  if (config.group === undefined || config.group instanceof Array === false) {
+    return make_flat_base(config);
+  }
+
   var result = [];
 
-  if(config.type !== 'group')
+  if (config.type !== 'group')
     return make_flat_base(config);
-  
-  config.group.forEach(function(baseconfig){
-    if(baseconfig.type === 'group')
-      make_flat_group(baseconfig).forEach(function(item){
+
+  config.group.forEach(function (baseconfig) {
+    if (baseconfig.type === 'group')
+      make_flat_group(baseconfig).forEach(function (item) {
         result.push(item);
       });
     else
-      make_flat_base(baseconfig).forEach(function(item){
+      make_flat_base(baseconfig).forEach(function (item) {
         result.push(item);
       });
   });
@@ -35,7 +35,7 @@ export function make_flat_group(config){
   return result;
 }
 
-export function get_base_id(config){
+export function get_base_id(config) {
   var type = EVENT[config.type].type;
   var opts = [
     {
@@ -48,7 +48,7 @@ export function get_base_id(config){
 
   opts.push();
 
-  if(type === TYPE_CONTINUOUS){
+  if (type === TYPE_CONTINUOUS) {
     opts.push({
       key: 'startWith',
       value: config.startWith
@@ -59,42 +59,42 @@ export function get_base_id(config){
     });
   }
 
-  if(config.type === 'longtap'){
+  if (config.type === 'longtap') {
     opts.push({
       key: 'longtapThreshold',
       value: config.longtapThreshold
     });
   }
 
-  if(config.after !== undefined){
+  if (config.after !== undefined) {
     after = get_base_id(config.after);
   }
 
-  opts.forEach(function(opt){
+  opts.forEach(function (opt) {
     opts_string.push(`${opt.key}=${opt.value}`);
   });
 
   return `${config.type}[${opts_string.join(',')}]{${after}}`;
 }
 
-export function get_group_Id(config){
+export function get_group_Id(config) {
   var opts_string = [];
 
-  config.group.forEach(function(baseconfig){
+  config.forEach(function (baseconfig) {
     opts_string.push(get_base_id(baseconfig));
   });
 
   return opts_string.join(',');
 }
 
-export function get_type_id(config){
+export function get_type_id(config) {
   var type = config.type;
-  if(type === 'longtap')
-    return type+'_'+config.longtapThreshold;
-  
+  if (type === 'longtap')
+    return type + '_' + config.longtapThreshold;
+
   return type;
 }
 
-export function last_arr(num, arr){
+export function last_arr(num, arr) {
   return arr[arr.length - num];
 }
