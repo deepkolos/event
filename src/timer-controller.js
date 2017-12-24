@@ -9,8 +9,19 @@ function TimerController(){
 }
 
 TimerController.prototype.stop = function(name){
-  if(this.list[name] !== null)
-    return clearTimeout(this.list[name]);
+  if(this.list[name] !== undefined) {
+    clearTimeout(this.list[name]);
+    this.list[name] = undefined;
+
+  } else if(name === 'longtap') {
+    
+    for (var id in this.list) {
+      if(id.indexOf(name) === 0 && this.list[id] !== undefined) {
+        clearTimeout(this.list[id]);
+        this.list[id] = undefined;
+      }
+    }
+  }
 };
 
 TimerController.prototype.start = function(name, delay){
@@ -21,7 +32,7 @@ TimerController.prototype.start = function(name, delay){
   function _warp_callback(func){
     _callback = function(){
       func();
-      self.list[name] = null;
+      self.list[name] = undefined;
     };
   }
 

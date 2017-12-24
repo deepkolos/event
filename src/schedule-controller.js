@@ -4,7 +4,8 @@ import {
   STATUS_INIT,
   STATUS_MOVE,
   STATUS_CANCEL,
-  STATUS_END
+  STATUS_END,
+  STATUS_START
 } from './define';
 import { get_type_id } from './tool';
 
@@ -20,27 +21,33 @@ ScheduleController.prototype.set_base = function(type, set_status){
   if(this.base[type] !== undefined){
     status = this.base[type].status;
 
+    // 设置init
     if (set_status === STATUS_INIT && status !== STATUS_END) {
       this.base[type].status = STATUS_INIT;
       return;
     }
 
-    if(set_status === STATUS_MOVE && status !== STATUS_INIT){
-      this.base[type].status = set_status;
-      this.updated_base.push(type);
-
-    // 要求状态往前推进
-    }else if(status > set_status && set_status !== STATUS_MOVE){
-
-      // 不允许init->cancel, end->cancel
-      if(
-        (status === STATUS_INIT && set_status === STATUS_CANCEL) ||
-        (status === STATUS_END && set_status === STATUS_CANCEL) ||
-        (status === STATUS_INIT && set_status === STATUS_END)
+    if (
+      // 设置start
+      (
+        set_status === STATUS_START && status === STATUS_INIT
+      ) ||
+      // 设置move
+      (
+        set_status === STATUS_MOVE &&
+        (status === STATUS_START || status === STATUS_MOVE)
+      ) ||
+      // 设置end
+      (
+        set_status === STATUS_END &&
+        (status === STATUS_START || status === STATUS_MOVE)
+      ) ||
+      // 设置cancel
+      (
+        set_status === STATUS_CANCEL &&
+        (status === STATUS_START || status === STATUS_MOVE)
       )
-        return;
-
-      //start/end/cancel, 包括longtap_xxx
+    ) {
       this.base[type].status = set_status;
       this.updated_base.push(type);
     }
@@ -62,9 +69,9 @@ ScheduleController.prototype.set_base = function(type, set_status){
         this.updated_base.push(id);
       }
     }
-    return;
   }
 };
+
 
 ScheduleController.prototype.commit_to_group = function(current_process){
   for(var gourpid in this.group) {

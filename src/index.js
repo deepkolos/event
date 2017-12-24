@@ -53,20 +53,25 @@ function addEvent($dom, config = {}) {
     $dom.__event.bus = bus.bind($dom);
   }
 
+  var list = $dom.__event.list;
+  var newId = $dom.__event.IDGenerator.new();
+  var group, _info;
+
   //设置一些默认值
   if (type === 'longtap') {
     if (config.longtapThreshold === undefined)
       config.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
   }
 
+  if (config.after && config.after.type === 'longtap') {
+    if (config.after.longtapThreshold === undefined)
+      config.after.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
+  }
+
   if (type === 'tap') {
     if (config.finger === undefined)
       config.finger = DEFAULT_TAP_FINGER;
   }
-
-  var list = $dom.__event.list;
-  var newId = $dom.__event.IDGenerator.new();
-  var group, _info;
 
   //添加事件配置
   if (EVENT[type].on === ON_FINGER) {
@@ -122,9 +127,9 @@ var evt_stack = {
 function bus(evt, usePatch) {
   var $dom = this;
 
-  if (usePatch !== true) {
-    // 原生事件,定时器事件都走这个bus
-    triggerbubble(this, evt);
+  if (bubble_started === false && usePatch !== true) {
+    bubble_started = true;
+    bubblestart(evt);
   }
 
   // 消化triggerlist
@@ -154,14 +159,8 @@ function bus(evt, usePatch) {
       }
     }
   });
-}
 
-function triggerbubble($nowDom, evt) {
-  if (bubble_started === false) {
-    bubble_started = true;
-    bubblestart(evt);
-  }
-  if (bubble_started === true && $nowDom === last_dom_involved) {
+  if (bubble_started === true && $dom === last_dom_involved && usePatch !== true) {
     //不过一般一个bubble的执行时间不会那么长的,不过如果使用了模版编译之类的,就有可能很长时间,
     //本来打算使用一个frame的时间结束所谓end的,还是不行,行为就不同了
     bubble_started = false;
@@ -238,7 +237,7 @@ function groupstart(evt) {
       base = schedule.group[id].group[group_progress];
       //基事件使用type->的映射就可以了,细微的状态更新方便
       schedule.write_base(base);
-      if (base.after !== undefined)
+      base.after !== undefined && 
         schedule.write_base(base.after);
     }
 
@@ -365,7 +364,11 @@ function update_triggerlist(evt) {
           schedule.base[get_type_id(base_config.after)].status !== STATUS_END
         )
       ) {
-        group.status = STATUS_CANCEL;
+
+        if(status === STATUS_START || status === STATUS_MOVE) {
+          group.status = STATUS_CANCEL;
+        }
+
       } else {
         group.status = base.status;
       }
@@ -450,11 +453,12 @@ function touchstart(evt) {
 }
 
 function touchmove(evt) {
+  // debugger;
   schedule.set_base('tap', STATUS_CANCEL);
   schedule.set_base('longtap', STATUS_CANCEL);
   schedule.set_base('swipe', STATUS_MOVE);
   schedule.set_base('swipe', STATUS_START);
-  timer.stop('longtap_debounce');
+  timer.stop('longtap');
   // 将会在start里面补一帧的move
 
   if (evt.touches.length > 1) {

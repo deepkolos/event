@@ -12,6 +12,20 @@ document.addEventListener("DOMContentLoaded", function() {
     cancel: function(){console.log('swipe cancel');},
   });
 
+  swipeCtrl.removeEvent();
+
+  addEvent($box, {
+    type: 'swipe',
+    after: {
+      type: 'longtap'
+    },
+
+    start:  function(){console.log('swipe start');},
+    move:   function(){console.log('swipe move');},
+    end:    function(){console.log('swipe end');},
+    cancel: function(){console.log('swipe cancel');},
+  });
+
   addEvent($box, {
     type: 'tap',
 
@@ -30,5 +44,5 @@ document.addEventListener("DOMContentLoaded", function() {
     cancel: function(){console.log('longtap cancel');},
   });
 
-  // swipeCtrl.disable();
+  swipeCtrl.removeEvent();
 });

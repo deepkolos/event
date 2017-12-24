@@ -257,18 +257,22 @@ function addEvent($dom) {
     $dom.__event.bus = bus.bind($dom);
   }
 
+  var list = $dom.__event.list;
+  var newId = $dom.__event.IDGenerator.new();
+  var group, _info;
+
   //设置一些默认值
   if (type === 'longtap') {
     if (config.longtapThreshold === undefined) config.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
   }
 
+  if (config.after && config.after.type === 'longtap') {
+    if (config.after.longtapThreshold === undefined) config.after.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
+  }
+
   if (type === 'tap') {
     if (config.finger === undefined) config.finger = _define.DEFAULT_TAP_FINGER;
   }
-
-  var list = $dom.__event.list;
-  var newId = $dom.__event.IDGenerator.new();
-  var group, _info;
 
   //添加事件配置
   if (_define.EVENT[type].on === _define.ON_FINGER) {
@@ -323,9 +327,9 @@ var evt_stack = {
 function bus(evt, usePatch) {
   var $dom = this;
 
-  if (usePatch !== true) {
-    // 原生事件,定时器事件都走这个bus
-    triggerbubble(this, evt);
+  if (bubble_started === false && usePatch !== true) {
+    bubble_started = true;
+    bubblestart(evt);
   }
 
   // 消化triggerlist
@@ -352,14 +356,8 @@ function bus(evt, usePatch) {
       }
     }
   });
-}
 
-function triggerbubble($nowDom, evt) {
-  if (bubble_started === false) {
-    bubble_started = true;
-    bubblestart(evt);
-  }
-  if (bubble_started === true && $nowDom === last_dom_involved) {
+  if (bubble_started === true && $dom === last_dom_involved && usePatch !== true) {
     //不过一般一个bubble的执行时间不会那么长的,不过如果使用了模版编译之类的,就有可能很长时间,
     //本来打算使用一个frame的时间结束所谓end的,还是不行,行为就不同了
     bubble_started = false;
@@ -435,7 +433,7 @@ function groupstart(evt) {
       base = schedule.group[_id].group[group_progress];
       //基事件使用type->的映射就可以了,细微的状态更新方便
       schedule.write_base(base);
-      if (base.after !== undefined) schedule.write_base(base.after);
+      base.after !== undefined && schedule.write_base(base.after);
     }
 
     //初始化完毕
@@ -536,7 +534,10 @@ function update_triggerlist(evt) {
       base.status === _define.STATUS_END && base_config.endWith !== undefined && base_config.endWith !== base.endWith ||
       // after
       base_config.after !== undefined && schedule.base[(0, _tool.get_type_id)(base_config.after)].status !== _define.STATUS_END) {
-        group.status = _define.STATUS_CANCEL;
+
+        if (status === _define.STATUS_START || status === _define.STATUS_MOVE) {
+          group.status = _define.STATUS_CANCEL;
+        }
       } else {
         group.status = base.status;
       }
@@ -616,11 +617,12 @@ function touchstart(evt) {
 }
 
 function touchmove(evt) {
+  // debugger;
   schedule.set_base('tap', _define.STATUS_CANCEL);
   schedule.set_base('longtap', _define.STATUS_CANCEL);
   schedule.set_base('swipe', _define.STATUS_MOVE);
   schedule.set_base('swipe', _define.STATUS_START);
-  timer.stop('longtap_debounce');
+  timer.stop('longtap');
   // 将会在start里面补一帧的move
 
   if (evt.touches.length > 1) {
@@ -681,22 +683,21 @@ ScheduleController.prototype.set_base = function (type, set_status) {
   if (this.base[type] !== undefined) {
     status = this.base[type].status;
 
+    // 设置init
     if (set_status === _define.STATUS_INIT && status !== _define.STATUS_END) {
       this.base[type].status = _define.STATUS_INIT;
       return;
     }
 
-    if (set_status === _define.STATUS_MOVE && status !== _define.STATUS_INIT) {
-      this.base[type].status = set_status;
-      this.updated_base.push(type);
-
-      // 要求状态往前推进
-    } else if (status > set_status && set_status !== _define.STATUS_MOVE) {
-
-      // 不允许init->cancel, end->cancel
-      if (status === _define.STATUS_INIT && set_status === _define.STATUS_CANCEL || status === _define.STATUS_END && set_status === _define.STATUS_CANCEL || status === _define.STATUS_INIT && set_status === _define.STATUS_END) return;
-
-      //start/end/cancel, 包括longtap_xxx
+    if (
+    // 设置start
+    set_status === _define.STATUS_START && status === _define.STATUS_INIT ||
+    // 设置move
+    set_status === _define.STATUS_MOVE && (status === _define.STATUS_START || status === _define.STATUS_MOVE) ||
+    // 设置end
+    set_status === _define.STATUS_END && (status === _define.STATUS_START || status === _define.STATUS_MOVE) ||
+    // 设置cancel
+    set_status === _define.STATUS_CANCEL && (status === _define.STATUS_START || status === _define.STATUS_MOVE)) {
       this.base[type].status = set_status;
       this.updated_base.push(type);
     }
@@ -713,7 +714,6 @@ ScheduleController.prototype.set_base = function (type, set_status) {
         this.updated_base.push(id);
       }
     }
-    return;
   }
 };
 
@@ -818,7 +818,18 @@ function TimerController() {
 }
 
 TimerController.prototype.stop = function (name) {
-  if (this.list[name] !== null) return clearTimeout(this.list[name]);
+  if (this.list[name] !== undefined) {
+    clearTimeout(this.list[name]);
+    this.list[name] = undefined;
+  } else if (name === 'longtap') {
+
+    for (var id in this.list) {
+      if (id.indexOf(name) === 0 && this.list[id] !== undefined) {
+        clearTimeout(this.list[id]);
+        this.list[id] = undefined;
+      }
+    }
+  }
 };
 
 TimerController.prototype.start = function (name, delay) {
@@ -829,7 +840,7 @@ TimerController.prototype.start = function (name, delay) {
   function _warp_callback(func) {
     _callback = function _callback() {
       func();
-      self.list[name] = null;
+      self.list[name] = undefined;
     };
   }
 
@@ -1049,6 +1060,28 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  swipeCtrl.removeEvent();
+
+  (0, _index2.default)($box, {
+    type: 'swipe',
+    after: {
+      type: 'longtap'
+    },
+
+    start: function start() {
+      console.log('swipe start');
+    },
+    move: function move() {
+      console.log('swipe move');
+    },
+    end: function end() {
+      console.log('swipe end');
+    },
+    cancel: function cancel() {
+      console.log('swipe cancel');
+    }
+  });
+
   (0, _index2.default)($box, {
     type: 'tap',
 
@@ -1083,7 +1116,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // swipeCtrl.disable();
+  swipeCtrl.removeEvent();
 });
 
 /***/ }),
