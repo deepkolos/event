@@ -690,9 +690,8 @@ function update_triggerlist(evt) {
 }
 
 function test_when(when) {
-  // debugger;
   var base = schedule.base[(0, _tool.get_type_id)(when)];
-  return (base.status instanceof Number && base.status !== when.status || base.status instanceof Array && when.status.includes(base.status)) && (when.startWith === undefined || when.startWith !== undefined && when.startWith !== base.startWith) && (when.startWith === undefined || when.endWith !== undefined && when.endWith !== base.endWith);
+  return when.status instanceof Number && base.status !== when.status || when.status instanceof Array && when.status.includes(base.status) === false || when.startWith !== undefined && when.startWith !== base.startWith || when.endWith !== undefined && when.endWith !== base.endWith;
 }
 
 function get_current_finger(base, base_config, evt) {
@@ -835,7 +834,8 @@ document.addEventListener("DOMContentLoaded", function () {
     type: 'swipe',
     when: {
       type: 'longtap',
-      status: ['cancel', 'init']
+      status: ['cancel', 'init'],
+      longtapThreshold: 1000 /*ms*/
     },
 
     start: function start() {
@@ -854,6 +854,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   (0, _index2.default)($box, {
     type: 'tap',
+    repeat: 2,
 
     start: function start() {
       console.log('tap start');

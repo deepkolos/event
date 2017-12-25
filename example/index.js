@@ -18,7 +18,8 @@ document.addEventListener("DOMContentLoaded", function() {
     type: 'swipe',
     when: {
       type:   'longtap',
-      status: ['cancel', 'init']
+      status: ['cancel', 'init'],
+      longtapThreshold: 1000/*ms*/
     },
 
     start:  function(){console.log('swipe start');},
@@ -28,7 +29,8 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   addEvent($box, {
-    type: 'tap',
+    type:   'tap',
+    repeat: 2,
 
     start:  function(){console.log('tap start');},
     move:   function(){console.log('tap move');},

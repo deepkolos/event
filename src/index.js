@@ -380,13 +380,11 @@ function update_triggerlist(evt) {
         ) ||
         // when
         (
-          (
-            base_config.when instanceof Object && 
-            test_when(base_config.when)
-          ) || (
-            base_config.when instanceof Array && 
-            base_config.when.every(test_when)
-          )
+          base_config.when instanceof Object && 
+          test_when(base_config.when)
+        ) || (
+          base_config.when instanceof Array && 
+          base_config.when.every(test_when)
         )
       ) {
 
@@ -415,26 +413,19 @@ function update_triggerlist(evt) {
 }
 
 function test_when(when){
-  // debugger;
   var base = schedule.base[get_type_id(when)];
   return (
-    (
-      base.status instanceof Number &&
-      base.status !== when.status
-    ) || (
-      base.status instanceof Array &&
-      when.status.includes(base.status)
-    )
-  ) && (
-    when.startWith === undefined || (
-      when.startWith !== undefined &&
-      when.startWith !== base.startWith
-    )
-  ) && (
-    when.startWith === undefined || (
-      when.endWith !== undefined &&
-      when.endWith !== base.endWith
-    )
+    when.status instanceof Number &&
+    base.status !== when.status
+  ) || (
+    when.status instanceof Array &&
+    when.status.includes(base.status) === false
+  ) || (
+    when.startWith !== undefined &&
+    when.startWith !== base.startWith
+  ) || (
+    when.endWith !== undefined &&
+    when.endWith !== base.endWith
   );
 }
 
