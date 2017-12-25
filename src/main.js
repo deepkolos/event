@@ -1,24 +1,32 @@
-import { make_flat_group, get_group_Id, get_type_id, last_arr } from './tool';
-import EventController from './event-controller';
+import IDGenerator        from './id-generator';
+import TimerController    from './timer-controller';
+import EventController    from './event-controller';
 import ScheduleController from './schedule-controller';
-import TimerController from './timer-controller';
-import IDGenerator from './id-generator';
+import {
+  last_arr,
+  init_when,
+  get_type_id,
+  get_group_Id,
+  config_equal,
+  make_flat_group
+} from './tool';
 import {
   EVENT,
   EVENT_STATUS,
 
-  ON_FINGER,
   ON_DOM,
   ON_EVENT,
+  ON_FINGER,
 
+  TYPE_MONENT,/* eslint no-unused-vars: 0 */
   TYPE_UNKNOW,/* eslint no-unused-vars: 0 */
   TYPE_CONTINUOUS,
-  TYPE_MONENT,/* eslint no-unused-vars: 0 */
-  DEFAULT_LONGTAP_THRESHOLD,
-  DEFAULT_TAP_FINGER
+
+  DEFAULT_TAP_FINGER,
+  DEFAULT_LONGTAP_THRESHOLD
 } from './define';
 
-
+// 对外接口
 function addEvent($dom, config = {}) {
   var type = config.type;
 
@@ -48,7 +56,7 @@ function addEvent($dom, config = {}) {
 
   var list  = $dom.__event.list;
   var newId = $dom.__event.IDGenerator.new();
-  var group, _info, evt_when_status;
+  var group, _info;
 
   //设置一些默认值
   if (type === 'longtap') {
@@ -56,37 +64,12 @@ function addEvent($dom, config = {}) {
       config.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
   }
 
-  if (config.when) {
-    if (
-      config.when.longtapThreshold === undefined && 
-      config.when.type === 'longtap'
-    ) {
-      config.when.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
-    }
-
-    evt_when_status = config.when.status;
-    if(evt_when_status === undefined){
-      config.when.status = EVENT_STATUS.end;
-
-    } else if (evt_when_status instanceof String) {
-      config.when.status = EVENT_STATUS[config.when.status];
-
-    } else if(evt_when_status instanceof Array) {
-      if (evt_when_status.length === 0) {
-        config.when.status = EVENT_STATUS.end;
-      } else {
-        config.when.status = evt_when_status.map(function(string){
-          return EVENT_STATUS[string];
-        });
-      }
-    }
-
-  }
-
   if (type === 'tap') {
     if (config.finger === undefined)
       config.finger = DEFAULT_TAP_FINGER;
   }
+
+  init_when(config);
 
   //添加事件配置
   if (EVENT[type].on === ON_FINGER) {
@@ -122,6 +105,7 @@ function addEvent($dom, config = {}) {
   return new EventController(_info);
 }
 
+// 内部实现
 var schedule = new ScheduleController();
 var triggerlist; // []
 var dom_involved;// [] order from bubble start to end
@@ -265,13 +249,11 @@ function groupstart(evt) {
 }
 
 function groupend(evt) {
-  // debugger;
-  // gourp commit
-  group_progress = schedule.commit_to_group(group_progress) ? group_progress + 1 : 0;
-  // 设置延迟groupgap的timer
-
-  if (group_progress !== 0) {
+  if (schedule.commit_to_group(group_progress)) {
+    group_progress++;
     timer.start('group_gap');
+  } else {
+    group_progress = 0;
   }
 }
 
@@ -321,12 +303,7 @@ function update_base_status(evt) {
   case 'touchcancel':
     touchcancel(evt);
     break;
-
-  case 'group_gap':
-    group_gap(evt);
-    break;
   }
-
 }
 
 function update_triggerlist(evt) {
@@ -336,7 +313,7 @@ function update_triggerlist(evt) {
   var groupid_in_process = [];
   var longer_groups = [];
 
-  // 找出max_group_len
+  // 找出max_group_len, 可以在groupstart的时候生成, 不过还是可以的
   if (schedule.updated_base.length !== 0) {
     for (let groupId in schedule.group) {
       group = schedule.group[groupId];
@@ -380,14 +357,12 @@ function update_triggerlist(evt) {
         // startWith
         (
           base.status === EVENT_STATUS.start &&
-          base_config.startWith !== undefined &&
-          base_config.startWith !== base.startWith
+          !config_equal(base.startWith, base_config.startWith)
         ) ||
         // endWith
         (
           base.status === EVENT_STATUS.end &&
-          base_config.endWith !== undefined &&
-          base_config.endWith !== base.endWith
+          !config_equal(base.endWith, base_config.endWith)
         ) ||
         // when
         (
@@ -419,6 +394,7 @@ function update_triggerlist(evt) {
           // debugger;
           if (longer_groups.some(function(group){
             // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
+            // get_type_id绝对有问题, 不应该这么频繁出现的
             var base_status = schedule.base[get_type_id(group.group[group_progress])].status;
   
             return (
@@ -441,11 +417,7 @@ function update_triggerlist(evt) {
 function test_when(when){
   var base = schedule.base[get_type_id(when)];
   return (
-    when.status instanceof Number &&
-    base.status !== when.status
-  ) || (
-    when.status instanceof Array &&
-    when.status.includes(base.status) === false
+    !config_equal(base.status, when.status)
   ) || (
     when.startWith !== undefined &&
     when.startWith !== base.startWith
@@ -547,10 +519,6 @@ function touchend(evt) {
 function touchcancel(evt) {
   // 目前还不是很清楚touchcancel的触发时机, MDN也就简单说创建了太多的触控点, 会触发,但是还是不清楚
   console.log(evt);
-}
-
-function group_gap(evt) {
-
 }
 
 export default addEvent;

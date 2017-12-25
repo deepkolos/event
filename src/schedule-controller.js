@@ -67,7 +67,6 @@ ScheduleController.prototype.set_base = function(type, set_status){
   }
 };
 
-
 ScheduleController.prototype.commit_to_group = function(current_process){
   var need_to_commit = false;
   for(var gourpid in this.group) {

@@ -1,4 +1,4 @@
-import { Type } from  './tool';
+import { Type } from './tool';
 
 const DEFAULT_LONGTAP_THRESHOLD = 700;
 const DEFAULT_TAP_FINGER        = 1;

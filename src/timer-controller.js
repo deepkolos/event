@@ -1,10 +1,14 @@
+import { last_arr }     from './tool';
 import { EVENT_STATUS } from './define';
-import { group_gap_trigger, schedule, start_bus_bubble, evt_stack } from './main';
-import { last_arr } from './tool';
+import { 
+  schedule,
+  evt_stack,
+  start_bus_bubble,
+  group_gap_trigger
+} from './main';
 
 function TimerController(){
   //储存引用
-  // this.longtap_debounce = null;
   this.list = {};
 }
 

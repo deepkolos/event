@@ -29,8 +29,8 @@ var controller = addEvent(document.createElement('div'), {
   }, //一般是longtap, 也可以做swipe, 有点难描述, 我觉得我应该换位置编写的
 
   longtapThreshold: Number,//longtap间隔时间,暂定
-  startWith: String,//在不同的事件有不同的含义,快照值
-  endWith: String,//快照值
+  startWith: String/Array,//在不同的事件有不同的含义,快照值
+  endWith: String/Array,//快照值
   ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发, 这层灵活性先不提供了
 
   //triggerRegister

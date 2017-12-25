@@ -201,12 +201,18 @@ exports.get_group_Id = get_group_Id;
 exports.get_type_id = get_type_id;
 exports.last_arr = last_arr;
 exports.Type = Type;
+exports.config_equal = config_equal;
+exports.init_start_end_with = init_start_end_with;
+exports.init_when = init_when;
 
 var _define = __webpack_require__(0);
 
 function make_flat_base(config) {
   var repeat = config.repeat || 1;
   var result = [];
+
+  init_start_end_with(config);
+  config.type_id = get_type_id(config);
 
   for (var i = 0; i < repeat; i++) {
     result.push(Object.assign({}, config));
@@ -296,7 +302,7 @@ function last_arr(num, arr) {
   return arr[arr.length - num];
 }
 
-// 感觉有必要使用ts的需求了,type
+// 感觉有使用ts的需求了,type
 function Type() {
   var config = arguments;
 
@@ -305,9 +311,87 @@ function Type() {
   }
 
   Object.keys(config).forEach(function (code) {
-    this[config[code]] = parseInt(code);
+    code = parseInt(code);
     this[code] = config[code];
+    this[config[code]] = code;
   }.bind(this));
+}
+
+function config_equal(current, setting) {
+  if (setting instanceof Array) {
+    return setting.includes(current);
+  } else if (setting instanceof Object === false) {
+    return current === setting;
+  }
+}
+
+function init_start_end_with_helper(type, config) {
+  var result = [];
+  var evt_type = config.type;
+  var _with = config[type];
+
+  if (_with instanceof String) {
+    result = explode_with_string(_with, evt_type);
+  } else if (_with instanceof Array) {
+    _with.forEach(function (string) {
+      explode_with_string(string, evt_type).forEach(result.push.bind(result));
+    });
+  }
+
+  if (result.length !== 0) config[type] = result;
+}
+
+function explode_with_string(string, evt_type) {
+  var _ = _define.START_END_WITH[evt_type];
+  var result = [_[string]];
+
+  if (evt_type === 'swipe') {
+    switch (string) {
+      case 'any':
+        result = [_.left, _.right, _.up, _.down];
+        break;
+      case 'horizontal':
+        result = [_.left, _.right];
+        break;
+      case 'vertical':
+        result = [_.up, _.down];
+        break;
+    }
+  }
+
+  return result;
+}
+
+function init_start_end_with(config) {
+  // 只有连续事件才有
+  if (_define.EVENT[config.type].type === _define.TYPE_CONTINUOUS) {
+    init_start_end_with_helper('endWith', config);
+    init_start_end_with_helper('startWith', config);
+  }
+}
+
+function init_when(config) {
+  if (config.when) {
+    var evt_when_status = config.when.status;
+
+    if (config.when.longtapThreshold === undefined && config.when.type === 'longtap') {
+      config.when.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
+    }
+
+    if (evt_when_status === undefined) {
+      config.when.status = _define.EVENT_STATUS.end;
+    } else if (evt_when_status instanceof String) {
+      config.when.status = _define.EVENT_STATUS[config.when.status];
+    } else if (evt_when_status instanceof Array) {
+      if (evt_when_status.length === 0) {
+        config.when.status = _define.EVENT_STATUS.end;
+      } else {
+        config.when.status = evt_when_status.map(function (string) {
+          return _define.EVENT_STATUS[string];
+        });
+      }
+    }
+  }
 }
 
 /***/ }),
@@ -373,6 +457,8 @@ document.addEventListener("DOMContentLoaded", function () {
       longtapThreshold: 1000 /*ms*/
     },
 
+    startWith: 'left',
+
     start: function start() {
       console.log('swipe start');
     },
@@ -436,9 +522,9 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _tool = __webpack_require__(1);
-
 var _define = __webpack_require__(0);
+
+var _tool = __webpack_require__(1);
 
 function EventController(info) {
   this.info = info;
@@ -624,15 +710,14 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _tool = __webpack_require__(1);
+
 var _define = __webpack_require__(0);
 
 var _main = __webpack_require__(8);
 
-var _tool = __webpack_require__(1);
-
 function TimerController() {
   //储存引用
-  // this.longtap_debounce = null;
   this.list = {};
 }
 
@@ -744,7 +829,13 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.group_gap_trigger = exports.start_bus_bubble = exports.evt_stack = exports.addEvent = exports.schedule = undefined;
 
-var _tool = __webpack_require__(1);
+var _idGenerator = __webpack_require__(7);
+
+var _idGenerator2 = _interopRequireDefault(_idGenerator);
+
+var _timerController = __webpack_require__(6);
+
+var _timerController2 = _interopRequireDefault(_timerController);
 
 var _eventController = __webpack_require__(4);
 
@@ -754,13 +845,7 @@ var _scheduleController = __webpack_require__(5);
 
 var _scheduleController2 = _interopRequireDefault(_scheduleController);
 
-var _timerController = __webpack_require__(6);
-
-var _timerController2 = _interopRequireDefault(_timerController);
-
-var _idGenerator = __webpack_require__(7);
-
-var _idGenerator2 = _interopRequireDefault(_idGenerator);
+var _tool = __webpack_require__(1);
 
 var _define = __webpack_require__(0);
 
@@ -768,6 +853,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
+// 对外接口
 function addEvent($dom) {
   var config = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 
@@ -796,37 +882,18 @@ function addEvent($dom) {
 
   var list = $dom.__event.list;
   var newId = $dom.__event.IDGenerator.new();
-  var group, _info, evt_when_status;
+  var group, _info;
 
   //设置一些默认值
   if (type === 'longtap') {
     if (config.longtapThreshold === undefined) config.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
   }
 
-  if (config.when) {
-    if (config.when.longtapThreshold === undefined && config.when.type === 'longtap') {
-      config.when.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
-    }
-
-    evt_when_status = config.when.status;
-    if (evt_when_status === undefined) {
-      config.when.status = _define.EVENT_STATUS.end;
-    } else if (evt_when_status instanceof String) {
-      config.when.status = _define.EVENT_STATUS[config.when.status];
-    } else if (evt_when_status instanceof Array) {
-      if (evt_when_status.length === 0) {
-        config.when.status = _define.EVENT_STATUS.end;
-      } else {
-        config.when.status = evt_when_status.map(function (string) {
-          return _define.EVENT_STATUS[string];
-        });
-      }
-    }
-  }
-
   if (type === 'tap') {
     if (config.finger === undefined) config.finger = _define.DEFAULT_TAP_FINGER;
   }
+
+  (0, _tool.init_when)(config);
 
   //添加事件配置
   if (_define.EVENT[type].on === _define.ON_FINGER) {
@@ -861,6 +928,7 @@ function addEvent($dom) {
   return new _eventController2.default(_info);
 }
 
+// 内部实现
 var schedule = new _scheduleController2.default();
 var triggerlist; // []
 var dom_involved; // [] order from bubble start to end
@@ -1001,13 +1069,11 @@ function groupstart(evt) {
 }
 
 function groupend(evt) {
-  // debugger;
-  // gourp commit
-  group_progress = schedule.commit_to_group(group_progress) ? group_progress + 1 : 0;
-  // 设置延迟groupgap的timer
-
-  if (group_progress !== 0) {
+  if (schedule.commit_to_group(group_progress)) {
+    group_progress++;
     timer.start('group_gap');
+  } else {
+    group_progress = 0;
   }
 }
 
@@ -1056,10 +1122,6 @@ function update_base_status(evt) {
     case 'touchcancel':
       touchcancel(evt);
       break;
-
-    case 'group_gap':
-      group_gap(evt);
-      break;
   }
 }
 
@@ -1070,7 +1132,7 @@ function update_triggerlist(evt) {
   var groupid_in_process = [];
   var longer_groups = [];
 
-  // 找出max_group_len
+  // 找出max_group_len, 可以在groupstart的时候生成, 不过还是可以的
   if (schedule.updated_base.length !== 0) {
     for (var groupId in schedule.group) {
       group = schedule.group[groupId];
@@ -1100,9 +1162,9 @@ function update_triggerlist(evt) {
       // 需要处理when, startWith, endWith, finger
       if (
       // startWith
-      base.status === _define.EVENT_STATUS.start && base_config.startWith !== undefined && base_config.startWith !== base.startWith ||
+      base.status === _define.EVENT_STATUS.start && !(0, _tool.config_equal)(base.startWith, base_config.startWith) ||
       // endWith
-      base.status === _define.EVENT_STATUS.end && base_config.endWith !== undefined && base_config.endWith !== base.endWith ||
+      base.status === _define.EVENT_STATUS.end && !(0, _tool.config_equal)(base.endWith, base_config.endWith) ||
       // when
       base_config.when instanceof Object && test_when(base_config.when) || base_config.when instanceof Array && base_config.when.every(test_when)) {
 
@@ -1122,6 +1184,7 @@ function update_triggerlist(evt) {
           // debugger;
           if (longer_groups.some(function (group) {
             // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
+            // get_type_id绝对有问题, 不应该这么频繁出现的
             var base_status = schedule.base[(0, _tool.get_type_id)(group.group[group_progress])].status;
 
             return base_status === _define.EVENT_STATUS.start || base_status === _define.EVENT_STATUS.move || base_status === _define.EVENT_STATUS.end;
@@ -1139,7 +1202,7 @@ function update_triggerlist(evt) {
 
 function test_when(when) {
   var base = schedule.base[(0, _tool.get_type_id)(when)];
-  return when.status instanceof Number && base.status !== when.status || when.status instanceof Array && when.status.includes(base.status) === false || when.startWith !== undefined && when.startWith !== base.startWith || when.endWith !== undefined && when.endWith !== base.endWith;
+  return !(0, _tool.config_equal)(base.status, when.status) || when.startWith !== undefined && when.startWith !== base.startWith || when.endWith !== undefined && when.endWith !== base.endWith;
 }
 
 function get_current_finger(base, base_config, evt) {
@@ -1233,8 +1296,6 @@ function touchcancel(evt) {
   // 目前还不是很清楚touchcancel的触发时机, MDN也就简单说创建了太多的触控点, 会触发,但是还是不清楚
   console.log(evt);
 }
-
-function group_gap(evt) {}
 
 exports.default = addEvent;
 exports.schedule = schedule;

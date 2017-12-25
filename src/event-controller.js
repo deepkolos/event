@@ -1,8 +1,5 @@
+import { EVENT, ON_FINGER }              from './define';
 import { make_flat_group, get_group_Id } from './tool';
-import {
-  EVENT,
-  ON_FINGER,
-} from './define';
 
 function EventController(info){
   this.info = info;
