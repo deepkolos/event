@@ -1,3 +1,5 @@
+import { Type } from  './tool';
+
 const DEFAULT_LONGTAP_THRESHOLD = 700;
 const DEFAULT_TAP_FINGER        = 1;
 
@@ -9,11 +11,19 @@ const ON_FINGER  = 0;
 const ON_DOM     = 1;
 const ON_EVENT   = 2;
 
-const STATUS_INIT   = 0;
-const STATUS_START  = -1;
-const STATUS_MOVE   = -2;
-const STATUS_END    = -3;
-const STATUS_CANCEL = -4;
+const START_END_WITH = {
+  swipe:  new Type('up', 'right', 'down', 'left'),
+  pinch:  new Type('in', 'out'),
+  rotate: new Type('clockwise', 'anticlockwise'),
+};
+
+const EVENT_STATUS = new Type({
+  [-0]: 'init',
+  [-1]: 'start',
+  [-2]: 'move',
+  [-3]: 'end',
+  [-4]: 'cancel'
+});
 //正数用于gourp的进度
 
 const EVENT = {
@@ -87,52 +97,19 @@ const EVENT = {
   }
 };
 
-const STATUS_STRINGS = {
-  '0':  'init',
-  '-1': 'start',
-  '-2': 'move',
-  '-3': 'end',
-  '-4': 'cancel'
-};
-
-let STRING_STATUS = {};
-
-Object.keys(STATUS_STRINGS).forEach(function(code){
-  STRING_STATUS[STATUS_STRINGS[code]] = parseInt(code);
-});
-
-function STATUS_TO_STRING(code){
-  if(STATUS_STRINGS[code])
-    return STATUS_STRINGS[code];
-  if(parseInt(code) > 0)
-    return 'during_group';
-  
-  return undefined;
-}
-
-function STRING_TO_STATUS(string){
-  return STRING_STATUS[string];
-}
-
 export {
   EVENT,
-
-  STATUS_INIT,
-  STATUS_START,
-  STATUS_MOVE,
-  STATUS_END,
-  STATUS_CANCEL,
 
   ON_FINGER,
   ON_DOM,
   ON_EVENT,
 
+  START_END_WITH,
+  EVENT_STATUS,
+
   TYPE_UNKNOW,
   TYPE_CONTINUOUS,
   TYPE_MONENT,
   DEFAULT_LONGTAP_THRESHOLD,
-  DEFAULT_TAP_FINGER,
-
-  STATUS_TO_STRING,
-  STRING_TO_STATUS
+  DEFAULT_TAP_FINGER
 };

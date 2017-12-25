@@ -73,6 +73,14 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.DEFAULT_TAP_FINGER = exports.DEFAULT_LONGTAP_THRESHOLD = exports.TYPE_MONENT = exports.TYPE_CONTINUOUS = exports.TYPE_UNKNOW = exports.EVENT_STATUS = exports.START_END_WITH = exports.ON_EVENT = exports.ON_DOM = exports.ON_FINGER = exports.EVENT = undefined;
+
+var _ref;
+
+var _tool = __webpack_require__(1);
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 var DEFAULT_LONGTAP_THRESHOLD = 700;
 var DEFAULT_TAP_FINGER = 1;
 
@@ -84,11 +92,13 @@ var ON_FINGER = 0;
 var ON_DOM = 1;
 var ON_EVENT = 2;
 
-var STATUS_INIT = 0;
-var STATUS_START = -1;
-var STATUS_MOVE = -2;
-var STATUS_END = -3;
-var STATUS_CANCEL = -4;
+var START_END_WITH = {
+  swipe: new _tool.Type('up', 'right', 'down', 'left'),
+  pinch: new _tool.Type('in', 'out'),
+  rotate: new _tool.Type('clockwise', 'anticlockwise')
+};
+
+var EVENT_STATUS = new _tool.Type((_ref = {}, _defineProperty(_ref, -0, 'init'), _defineProperty(_ref, -1, 'start'), _defineProperty(_ref, -2, 'move'), _defineProperty(_ref, -3, 'end'), _defineProperty(_ref, -4, 'cancel'), _ref));
 //正数用于gourp的进度
 
 var EVENT = {
@@ -162,47 +172,17 @@ var EVENT = {
   }
 };
 
-var STATUS_STRINGS = {
-  '0': 'init',
-  '-1': 'start',
-  '-2': 'move',
-  '-3': 'end',
-  '-4': 'cancel'
-};
-
-var STRING_STATUS = {};
-
-Object.keys(STATUS_STRINGS).forEach(function (code) {
-  STRING_STATUS[STATUS_STRINGS[code]] = parseInt(code);
-});
-
-function STATUS_TO_STRING(code) {
-  if (STATUS_STRINGS[code]) return STATUS_STRINGS[code];
-  if (parseInt(code) > 0) return 'during_group';
-
-  return undefined;
-}
-
-function STRING_TO_STATUS(string) {
-  return STRING_STATUS[string];
-}
-
 exports.EVENT = EVENT;
-exports.STATUS_INIT = STATUS_INIT;
-exports.STATUS_START = STATUS_START;
-exports.STATUS_MOVE = STATUS_MOVE;
-exports.STATUS_END = STATUS_END;
-exports.STATUS_CANCEL = STATUS_CANCEL;
 exports.ON_FINGER = ON_FINGER;
 exports.ON_DOM = ON_DOM;
 exports.ON_EVENT = ON_EVENT;
+exports.START_END_WITH = START_END_WITH;
+exports.EVENT_STATUS = EVENT_STATUS;
 exports.TYPE_UNKNOW = TYPE_UNKNOW;
 exports.TYPE_CONTINUOUS = TYPE_CONTINUOUS;
 exports.TYPE_MONENT = TYPE_MONENT;
 exports.DEFAULT_LONGTAP_THRESHOLD = DEFAULT_LONGTAP_THRESHOLD;
 exports.DEFAULT_TAP_FINGER = DEFAULT_TAP_FINGER;
-exports.STATUS_TO_STRING = STATUS_TO_STRING;
-exports.STRING_TO_STATUS = STRING_TO_STATUS;
 
 /***/ }),
 /* 1 */
@@ -220,6 +200,7 @@ exports.get_base_id = get_base_id;
 exports.get_group_Id = get_group_Id;
 exports.get_type_id = get_type_id;
 exports.last_arr = last_arr;
+exports.Type = Type;
 
 var _define = __webpack_require__(0);
 
@@ -315,6 +296,20 @@ function last_arr(num, arr) {
   return arr[arr.length - num];
 }
 
+// 感觉有必要使用ts的需求了,type
+function Type() {
+  var config = arguments;
+
+  if (config[0] instanceof Object) {
+    config = config[0];
+  }
+
+  Object.keys(config).forEach(function (code) {
+    this[config[code]] = parseInt(code);
+    this[code] = config[code];
+  }.bind(this));
+}
+
 /***/ }),
 /* 2 */
 /***/ (function(module, exports, __webpack_require__) {
@@ -379,7 +374,7 @@ function addEvent($dom) {
 
   var list = $dom.__event.list;
   var newId = $dom.__event.IDGenerator.new();
-  var group, _info;
+  var group, _info, evt_when_status;
 
   //设置一些默认值
   if (type === 'longtap') {
@@ -391,15 +386,18 @@ function addEvent($dom) {
       config.when.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
     }
 
-    if (config.when.status === undefined) {
-      config.when.status = _define.STATUS_END;
-    } else if (config.when.status instanceof String) {
-      config.when.status = (0, _define.STRING_TO_STATUS)(config.when.status);
-    } else if (config.when.status instanceof Array) {
-      if (config.when.status.length === 0) {
-        config.when.status = _define.STATUS_END;
+    evt_when_status = config.when.status;
+    if (evt_when_status === undefined) {
+      config.when.status = _define.EVENT_STATUS.end;
+    } else if (evt_when_status instanceof String) {
+      config.when.status = _define.EVENT_STATUS[config.when.status];
+    } else if (evt_when_status instanceof Array) {
+      if (evt_when_status.length === 0) {
+        config.when.status = _define.EVENT_STATUS.end;
       } else {
-        config.when.status = config.when.status.map(_define.STRING_TO_STATUS);
+        config.when.status = evt_when_status.map(function (string) {
+          return _define.EVENT_STATUS[string];
+        });
       }
     }
   }
@@ -476,13 +474,13 @@ function bus(evt, usePatch) {
       var info = grouplist[id];
       if (info.groupId === groupId) {
         var group = schedule.group[groupId];
-        var listener = info.config[(0, _define.STATUS_TO_STRING)(group.status)];
+        var listener = info.config[_define.EVENT_STATUS[group.status]];
 
         if (info.config.disable !== true) {
           listener instanceof Function && listener.call($dom, evt);
 
           // start补一帧move, TYPE_CONTINUOUS的事件
-          _define.EVENT[group.group[group_progress].type].type === _define.TYPE_CONTINUOUS && group.status === _define.STATUS_START && info.config.move instanceof Function && info.config.move.call($dom, evt);
+          _define.EVENT[group.group[group_progress].type].type === _define.TYPE_CONTINUOUS && group.status === _define.EVENT_STATUS.start && info.config.move instanceof Function && info.config.move.call($dom, evt);
         }
       }
     }
@@ -537,7 +535,7 @@ function groupstart(evt) {
   group_gap_stack.forEach(function (groupId) {
     triggerlist.push(groupId);
     //并且设置cancel事件
-    schedule.group[groupId].status = _define.STATUS_CANCEL;
+    schedule.group[groupId].status = _define.EVENT_STATUS.cancel;
   });
   evt.path.forEach(function ($dom) {
     if ($dom.__event !== undefined) {
@@ -656,7 +654,7 @@ function update_triggerlist(evt) {
   if (schedule.updated_base.length !== 0) {
     for (var groupId in schedule.group) {
       group = schedule.group[groupId];
-      if (group.status === group_progress || group.status === _define.STATUS_START || group.status === _define.STATUS_MOVE) {
+      if (group.status === group_progress || group.status === _define.EVENT_STATUS.start || group.status === _define.EVENT_STATUS.move) {
         tmp_len = group.group.length - 1;
 
         if (tmp_len > max_group_len) max_group_len = tmp_len;
@@ -673,23 +671,23 @@ function update_triggerlist(evt) {
     group = schedule.group[groupId];
 
     // 同步base的状态到group里面
-    if (group.status === group.group.length - 1 || group.status === _define.STATUS_START || group.status === _define.STATUS_MOVE) {
+    if (group.status === group.group.length - 1 || group.status === _define.EVENT_STATUS.start || group.status === _define.EVENT_STATUS.move) {
       base_config = schedule.get_base_config_of_groupId(groupId);
       base = schedule.get_base_of_groupId(groupId);
 
-      if (base.status === _define.STATUS_INIT) return;
+      if (base.status === _define.EVENT_STATUS.init) return;
 
       // 需要处理when, startWith, endWith, finger
       if (
       // startWith
-      base.status === _define.STATUS_START && base_config.startWith !== undefined && base_config.startWith !== base.startWith ||
+      base.status === _define.EVENT_STATUS.start && base_config.startWith !== undefined && base_config.startWith !== base.startWith ||
       // endWith
-      base.status === _define.STATUS_END && base_config.endWith !== undefined && base_config.endWith !== base.endWith ||
+      base.status === _define.EVENT_STATUS.end && base_config.endWith !== undefined && base_config.endWith !== base.endWith ||
       // when
       base_config.when instanceof Object && test_when(base_config.when) || base_config.when instanceof Array && base_config.when.every(test_when)) {
 
-        if (status === _define.STATUS_START || status === _define.STATUS_MOVE) {
-          group.status = _define.STATUS_CANCEL;
+        if (status === _define.EVENT_STATUS.start || status === _define.EVENT_STATUS.move) {
+          group.status = _define.EVENT_STATUS.cancel;
         }
       } else {
         group.status = base.status;
@@ -697,16 +695,16 @@ function update_triggerlist(evt) {
 
       if (base_config.finger !== undefined && base_config.finger === get_current_finger(base, base_config, evt) || //longtap的自定义触发引用需要更换
       base_config.finger === undefined) {
-        // if (group.status === STATUS_END) debugger;
+        // if (group.status === EVENT_STATUS.end) debugger;
         // 需要查看是否有更长的group, 是否还有机会触发
-        if (group_progress < max_group_len && group.status === _define.STATUS_END) {
+        if (group_progress < max_group_len && group.status === _define.EVENT_STATUS.end) {
           // 把这次的触发压到堆栈里面去
           // debugger;
           if (longer_groups.some(function (group) {
             // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
             var base_status = schedule.base[(0, _tool.get_type_id)(group.group[group_progress])].status;
 
-            return base_status === _define.STATUS_START || base_status === _define.STATUS_MOVE || base_status === _define.STATUS_END;
+            return base_status === _define.EVENT_STATUS.start || base_status === _define.EVENT_STATUS.move || base_status === _define.EVENT_STATUS.end;
           })) {
             group_gap_stack.push(groupId);
             return;
@@ -729,11 +727,11 @@ function get_current_finger(base, base_config, evt) {
     case 'tap':
 
       switch (base.status) {
-        case _define.STATUS_START:
+        case _define.EVENT_STATUS.start:
           return (0, _tool.last_arr)(1, evt_stack.start).touches.length;
-        case _define.STATUS_END:
+        case _define.EVENT_STATUS.end:
           return (0, _tool.last_arr)(1, evt_stack.start).touches.length;
-        case _define.STATUS_CANCEL:
+        case _define.EVENT_STATUS.cancel:
           return (0, _tool.last_arr)(1, evt_stack.start).touches.length;
       }
 
@@ -741,9 +739,9 @@ function get_current_finger(base, base_config, evt) {
     case 'longtap':
 
       switch (base.status) {
-        case _define.STATUS_START:
+        case _define.EVENT_STATUS.start:
           return (0, _tool.last_arr)(1, evt_stack.start).touches.length;
-        case _define.STATUS_END:
+        case _define.EVENT_STATUS.end:
           return (0, _tool.last_arr)(1, evt_stack.start).touches.length;
       }
 
@@ -767,18 +765,18 @@ function touchstart(evt) {
     if (evt_stack.start.length > 1) {
       start_bus_bubble((0, _tool.last_arr)(2, evt_stack.start), function () {
         // start patch
-        schedule.set_base('tap', _define.STATUS_CANCEL);
-        schedule.set_base('longtap', _define.STATUS_CANCEL);
+        schedule.set_base('tap', _define.EVENT_STATUS.cancel);
+        schedule.set_base('longtap', _define.EVENT_STATUS.cancel);
       }, function () {
         // end patch
-        schedule.set_base('longtap', _define.STATUS_INIT);
-        schedule.set_base('tap', _define.STATUS_INIT);
+        schedule.set_base('longtap', _define.EVENT_STATUS.init);
+        schedule.set_base('tap', _define.EVENT_STATUS.init);
       });
     }
 
     // 更新tap status->start, 这个是使用现有的tap的longtapThreshold来区别的所以是没有
     // 这一层是源触发的bus
-    schedule.set_base('tap', _define.STATUS_START);
+    schedule.set_base('tap', _define.EVENT_STATUS.start);
   }
 
   //longtap 的16ms的定时器
@@ -787,27 +785,27 @@ function touchstart(evt) {
 
 function touchmove(evt) {
   // debugger;
-  schedule.set_base('tap', _define.STATUS_CANCEL);
-  schedule.set_base('longtap', _define.STATUS_CANCEL);
-  schedule.set_base('swipe', _define.STATUS_MOVE);
-  schedule.set_base('swipe', _define.STATUS_START);
+  schedule.set_base('tap', _define.EVENT_STATUS.cancel);
+  schedule.set_base('longtap', _define.EVENT_STATUS.cancel);
+  schedule.set_base('swipe', _define.EVENT_STATUS.move);
+  schedule.set_base('swipe', _define.EVENT_STATUS.start);
   timer.stop('longtap');
   // 将会在start里面补一帧的move
 
   if (evt.touches.length > 1) {
-    schedule.set_base('pinch', _define.STATUS_MOVE);
-    schedule.set_base('pinch', _define.STATUS_START);
-    schedule.set_base('rotate', _define.STATUS_MOVE);
-    schedule.set_base('rotate', _define.STATUS_START);
+    schedule.set_base('pinch', _define.EVENT_STATUS.move);
+    schedule.set_base('pinch', _define.EVENT_STATUS.start);
+    schedule.set_base('rotate', _define.EVENT_STATUS.move);
+    schedule.set_base('rotate', _define.EVENT_STATUS.start);
   }
 }
 
 function touchend(evt) {
   if (evt.touches.length === 0) {
-    schedule.set_base('tap', _define.STATUS_END);
-    schedule.set_base('swipe', _define.STATUS_END);
+    schedule.set_base('tap', _define.EVENT_STATUS.end);
+    schedule.set_base('swipe', _define.EVENT_STATUS.end);
   }
-  schedule.set_base('longtap', _define.STATUS_CANCEL);
+  schedule.set_base('longtap', _define.EVENT_STATUS.cancel);
   timer.stop('longtap_debounce');
 }
 
@@ -999,20 +997,20 @@ ScheduleController.prototype.set_base = function (type, set_status) {
     status = this.base[type].status;
 
     // 设置init
-    if (set_status === _define.STATUS_INIT && status !== _define.STATUS_END) {
-      this.base[type].status = _define.STATUS_INIT;
+    if (set_status === _define.EVENT_STATUS.init && status !== _define.EVENT_STATUS.end) {
+      this.base[type].status = _define.EVENT_STATUS.init;
       return;
     }
 
     if (
     // 设置start
-    set_status === _define.STATUS_START && status === _define.STATUS_INIT ||
+    set_status === _define.EVENT_STATUS.start && status === _define.EVENT_STATUS.init ||
     // 设置move
-    set_status === _define.STATUS_MOVE && (status === _define.STATUS_START || status === _define.STATUS_MOVE) ||
+    set_status === _define.EVENT_STATUS.move && (status === _define.EVENT_STATUS.start || status === _define.EVENT_STATUS.move) ||
     // 设置end
-    set_status === _define.STATUS_END && (status === _define.STATUS_START || status === _define.STATUS_MOVE) ||
+    set_status === _define.EVENT_STATUS.end && (status === _define.EVENT_STATUS.start || status === _define.EVENT_STATUS.move) ||
     // 设置cancel
-    set_status === _define.STATUS_CANCEL && (status === _define.STATUS_START || status === _define.STATUS_MOVE)) {
+    set_status === _define.EVENT_STATUS.cancel && (status === _define.EVENT_STATUS.start || status === _define.EVENT_STATUS.move)) {
       this.base[type].status = set_status;
       this.updated_base.push(type);
     }
@@ -1023,7 +1021,7 @@ ScheduleController.prototype.set_base = function (type, set_status) {
       status = this.base[id].status;
 
       if (id.indexOf('longtap') === 0) {
-        if (status === _define.STATUS_INIT && set_status === _define.STATUS_CANCEL || status === _define.STATUS_END && set_status === _define.STATUS_CANCEL || status === _define.STATUS_INIT && set_status === _define.STATUS_END) return;
+        if (status === _define.EVENT_STATUS.init && set_status === _define.EVENT_STATUS.cancel || status === _define.EVENT_STATUS.end && set_status === _define.EVENT_STATUS.cancel || status === _define.EVENT_STATUS.init && set_status === _define.EVENT_STATUS.end) return;
 
         this.base[id].status = set_status;
         this.updated_base.push(id);
@@ -1036,7 +1034,7 @@ ScheduleController.prototype.commit_to_group = function (current_process) {
   for (var gourpid in this.group) {
     var group = this.group[gourpid];
 
-    if (group.status === current_process && this.base[(0, _tool.get_type_id)(group.group[current_process])].status === _define.STATUS_END) {
+    if (group.status === current_process && this.base[(0, _tool.get_type_id)(group.group[current_process])].status === _define.EVENT_STATUS.end) {
       group.status++;
     }
   }
@@ -1057,13 +1055,13 @@ ScheduleController.prototype.write_base = function (config) {
   if (type === 'longtap') {
     if (this.base[type + '_' + config.longtapThreshold] === undefined) {
       this.base[type + '_' + config.longtapThreshold] = {
-        status: _define.STATUS_INIT,
+        status: _define.EVENT_STATUS.init,
         threshold: config.longtapThreshold
       };
     }
   } else if (this.base[type] === undefined) {
     this.base[type] = {
-      status: _define.STATUS_INIT
+      status: _define.EVENT_STATUS.init
     };
   }
 
@@ -1075,7 +1073,7 @@ ScheduleController.prototype.write_base = function (config) {
 
 ScheduleController.prototype.write_group = function (config) {
   if (this.group[config.groupId] === undefined) this.group[config.groupId] = {
-    status: _define.STATUS_INIT,
+    status: _define.EVENT_STATUS.init,
     group: config.group
   };
 };
@@ -1176,7 +1174,7 @@ TimerController.prototype.start = function (name, delay) {
           type: 'longtap',
           touches: (0, _tool.last_arr)(1, _index.evt_stack.start).touches
         }, function () {
-          _index.schedule.set_base('longtap', _define.STATUS_START);
+          _index.schedule.set_base('longtap', _define.EVENT_STATUS.start);
         });
       }
 
@@ -1192,8 +1190,8 @@ TimerController.prototype.start = function (name, delay) {
         type: 'longtap',
         touches: (0, _tool.last_arr)(1, _index.evt_stack.start).touches
       }, function () {
-        _index.schedule.set_base(name, _define.STATUS_END);
-        _index.schedule.set_base('tap', _define.STATUS_CANCEL);
+        _index.schedule.set_base(name, _define.EVENT_STATUS.end);
+        _index.schedule.set_base('tap', _define.EVENT_STATUS.cancel);
       });
     });
   } else if (name === 'group_gap') {

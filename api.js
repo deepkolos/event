@@ -23,7 +23,7 @@ var controller = addEvent(document.createElement('div'), {
   when: {//其含义是在一个group内某个事件之后,所以必须是基事件,但是需要支持after的嵌套..不支持,不想增加复杂度了
     type: type,
     finger: Number,
-    status: String/Array,// init, start, move, end, cancel分别对应0, -1, -2, -3, -4
+    status: String/Array,// init, start, move, end, cancel
     repeat: 1,//只能为1,不支持group
     when: {}//会被忽略...
   }, //一般是longtap, 也可以做swipe, 有点难描述, 我觉得我应该换位置编写的

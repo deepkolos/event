@@ -98,3 +98,17 @@ export function get_type_id(config) {
 export function last_arr(num, arr) {
   return arr[arr.length - num];
 }
+
+// 感觉有必要使用ts的需求了,type
+export function Type(){
+  var config = arguments;
+
+  if (config[0] instanceof Object) {
+    config = config[0];
+  }
+
+  Object.keys(config).forEach(function(code){
+    this[config[code]] = parseInt(code);
+    this[code] = config[code];
+  }.bind(this));
+}

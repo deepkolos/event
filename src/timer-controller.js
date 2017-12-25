@@ -1,4 +1,4 @@
-import { STATUS_START, STATUS_END, STATUS_CANCEL} from './define';
+import { EVENT_STATUS } from './define';
 import { group_gap_trigger, schedule, start_bus_bubble, evt_stack } from './index';
 import { last_arr } from './tool';
 
@@ -54,7 +54,7 @@ TimerController.prototype.start = function(name, delay){
           type: 'longtap',
           touches: last_arr(1, evt_stack.start).touches
         }, function(){
-          schedule.set_base('longtap', STATUS_START);
+          schedule.set_base('longtap', EVENT_STATUS.start);
         });
       }
 
@@ -70,8 +70,8 @@ TimerController.prototype.start = function(name, delay){
         type: 'longtap',
         touches: last_arr(1, evt_stack.start).touches
       }, function(){
-        schedule.set_base(name, STATUS_END);
-        schedule.set_base('tap', STATUS_CANCEL);
+        schedule.set_base(name, EVENT_STATUS.end);
+        schedule.set_base('tap', EVENT_STATUS.cancel);
       });
     });
   }else if(name === 'group_gap') {
