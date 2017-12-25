@@ -22,7 +22,8 @@ import {
   DEFAULT_LONGTAP_THRESHOLD,
   DEFAULT_TAP_FINGER,
 
-  STATUS_TO_STRING
+  STATUS_TO_STRING,
+  STRING_TO_STATUS
 } from './define';
 
 
@@ -38,17 +39,17 @@ function addEvent($dom, config = {}) {
   if ($dom.__event === undefined) {
     $dom.__event = {
       list: {
-        [ON_DOM]: {},
-        [ON_EVENT]: {},
-        [ON_FINGER]: {}
+        [ON_DOM]:     {},
+        [ON_EVENT]:   {},
+        [ON_FINGER]:  {}
       },
       IDGenerator: new IDGenerator()
     };
 
-    $dom.addEventListener('touchstart', bus, false);
-    $dom.addEventListener('touchmove', bus, false);
-    $dom.addEventListener('touchend', bus, false);
-    $dom.addEventListener('touchcancel', bus, false);
+    $dom.addEventListener('touchstart',   bus, false);
+    $dom.addEventListener('touchmove',    bus, false);
+    $dom.addEventListener('touchend',     bus, false);
+    $dom.addEventListener('touchcancel',  bus, false);
 
     $dom.__event.bus = bus.bind($dom);
   }
@@ -63,9 +64,28 @@ function addEvent($dom, config = {}) {
       config.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
   }
 
-  if (config.after && config.after.type === 'longtap') {
-    if (config.after.longtapThreshold === undefined)
-      config.after.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
+  if (config.when) {
+    if (
+      config.when.longtapThreshold === undefined && 
+      config.when.type === 'longtap'
+    ) {
+      config.when.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
+    }
+
+    if(config.when.status === undefined){
+      config.when.status = STATUS_END;
+
+    } else if (config.when.status instanceof String) {
+      config.when.status = STRING_TO_STATUS(config.when.status);
+
+    } else if(config.when.status instanceof Array) {
+      if (config.when.status.length === 0) {
+        config.when.status = STATUS_END;
+      } else {
+        config.when.status = config.when.status.map(STRING_TO_STATUS);
+      }
+    }
+
   }
 
   if (type === 'tap') {
@@ -237,8 +257,8 @@ function groupstart(evt) {
       base = schedule.group[id].group[group_progress];
       //基事件使用type->的映射就可以了,细微的状态更新方便
       schedule.write_base(base);
-      base.after !== undefined && 
-        schedule.write_base(base.after);
+      base.when !== undefined && 
+        schedule.write_base(base.when);
     }
 
     //初始化完毕
@@ -344,7 +364,7 @@ function update_triggerlist(evt) {
       if (base.status === STATUS_INIT)
         return;
 
-      // 需要处理after, startWith, endWith, finger
+      // 需要处理when, startWith, endWith, finger
       if (
         // startWith
         (
@@ -358,10 +378,15 @@ function update_triggerlist(evt) {
           base_config.endWith !== undefined &&
           base_config.endWith !== base.endWith
         ) ||
-        // after
+        // when
         (
-          base_config.after !== undefined &&
-          schedule.base[get_type_id(base_config.after)].status !== STATUS_END
+          (
+            base_config.when instanceof Object && 
+            test_when(base_config.when)
+          ) || (
+            base_config.when instanceof Array && 
+            base_config.when.every(test_when)
+          )
         )
       ) {
 
@@ -387,6 +412,30 @@ function update_triggerlist(evt) {
       }
     }
   });
+}
+
+function test_when(when){
+  // debugger;
+  var base = schedule.base[get_type_id(when)];
+  return (
+    (
+      base.status instanceof Number &&
+      base.status !== when.status
+    ) || (
+      base.status instanceof Array &&
+      when.status.includes(base.status)
+    )
+  ) && (
+    when.startWith === undefined || (
+      when.startWith !== undefined &&
+      when.startWith !== base.startWith
+    )
+  ) && (
+    when.startWith === undefined || (
+      when.endWith !== undefined &&
+      when.endWith !== base.endWith
+    )
+  );
 }
 
 function get_current_finger(base, base_config, evt) {

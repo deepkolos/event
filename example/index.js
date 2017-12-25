@@ -16,8 +16,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
   addEvent($box, {
     type: 'swipe',
-    after: {
-      type: 'longtap'
+    when: {
+      type:   'longtap',
+      status: ['cancel', 'init']
     },
 
     start:  function(){console.log('swipe start');},

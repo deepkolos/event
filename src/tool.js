@@ -44,7 +44,7 @@ export function get_base_id(config) {
     }
   ];
   var opts_string = [];
-  var after = '';
+  var when = '';
 
   opts.push();
 
@@ -66,15 +66,15 @@ export function get_base_id(config) {
     });
   }
 
-  if (config.after !== undefined) {
-    after = get_base_id(config.after);
+  if (config.when !== undefined) {
+    when = get_base_id(config.when);
   }
 
   opts.forEach(function (opt) {
     opts_string.push(`${opt.key}=${opt.value}`);
   });
 
-  return `${config.type}[${opts_string.join(',')}]{${after}}`;
+  return `${config.type}[${opts_string.join(',')}]{${when}}`;
 }
 
 export function get_group_Id(config) {

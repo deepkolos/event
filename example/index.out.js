@@ -60,12 +60,11 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 8);
+/******/ 	return __webpack_require__(__webpack_require__.s = 3);
 /******/ })
 /************************************************************************/
-/******/ ({
-
-/***/ 0:
+/******/ ([
+/* 0 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -171,11 +170,21 @@ var STATUS_STRINGS = {
   '-4': 'cancel'
 };
 
+var STRING_STATUS = {};
+
+Object.keys(STATUS_STRINGS).forEach(function (code) {
+  STRING_STATUS[STATUS_STRINGS[code]] = parseInt(code);
+});
+
 function STATUS_TO_STRING(code) {
   if (STATUS_STRINGS[code]) return STATUS_STRINGS[code];
   if (parseInt(code) > 0) return 'during_group';
 
   return undefined;
+}
+
+function STRING_TO_STATUS(string) {
+  return STRING_STATUS[string];
 }
 
 exports.EVENT = EVENT;
@@ -193,10 +202,121 @@ exports.TYPE_MONENT = TYPE_MONENT;
 exports.DEFAULT_LONGTAP_THRESHOLD = DEFAULT_LONGTAP_THRESHOLD;
 exports.DEFAULT_TAP_FINGER = DEFAULT_TAP_FINGER;
 exports.STATUS_TO_STRING = STATUS_TO_STRING;
+exports.STRING_TO_STATUS = STRING_TO_STATUS;
 
 /***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
 
-/***/ 1:
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.make_flat_base = make_flat_base;
+exports.make_flat_group = make_flat_group;
+exports.get_base_id = get_base_id;
+exports.get_group_Id = get_group_Id;
+exports.get_type_id = get_type_id;
+exports.last_arr = last_arr;
+
+var _define = __webpack_require__(0);
+
+function make_flat_base(config) {
+  var repeat = config.repeat || 1;
+  var result = [];
+
+  for (var i = 0; i < repeat; i++) {
+    result.push(Object.assign({}, config));
+  }
+
+  return result;
+}
+
+function make_flat_group(config) {
+  if (config.group === undefined || config.group instanceof Array === false) {
+    return make_flat_base(config);
+  }
+
+  var result = [];
+
+  if (config.type !== 'group') return make_flat_base(config);
+
+  config.group.forEach(function (baseconfig) {
+    if (baseconfig.type === 'group') make_flat_group(baseconfig).forEach(function (item) {
+      result.push(item);
+    });else make_flat_base(baseconfig).forEach(function (item) {
+      result.push(item);
+    });
+  });
+
+  return result;
+}
+
+function get_base_id(config) {
+  var type = _define.EVENT[config.type].type;
+  var opts = [{
+    key: 'finger',
+    value: config.finger
+  }];
+  var opts_string = [];
+  var when = '';
+
+  opts.push();
+
+  if (type === _define.TYPE_CONTINUOUS) {
+    opts.push({
+      key: 'startWith',
+      value: config.startWith
+    });
+    opts.push({
+      key: 'endWith',
+      value: config.endWith
+    });
+  }
+
+  if (config.type === 'longtap') {
+    opts.push({
+      key: 'longtapThreshold',
+      value: config.longtapThreshold
+    });
+  }
+
+  if (config.when !== undefined) {
+    when = get_base_id(config.when);
+  }
+
+  opts.forEach(function (opt) {
+    opts_string.push(opt.key + '=' + opt.value);
+  });
+
+  return config.type + '[' + opts_string.join(',') + ']{' + when + '}';
+}
+
+function get_group_Id(config) {
+  var opts_string = [];
+
+  config.forEach(function (baseconfig) {
+    opts_string.push(get_base_id(baseconfig));
+  });
+
+  return opts_string.join(',');
+}
+
+function get_type_id(config) {
+  var type = config.type;
+  if (type === 'longtap') return type + '_' + config.longtapThreshold;
+
+  return type;
+}
+
+function last_arr(num, arr) {
+  return arr[arr.length - num];
+}
+
+/***/ }),
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -207,21 +327,21 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.evt_stack = exports.group_gap_trigger = exports.addEvent = exports.start_bus_bubble = exports.schedule = undefined;
 
-var _tool = __webpack_require__(2);
+var _tool = __webpack_require__(1);
 
-var _eventController = __webpack_require__(9);
+var _eventController = __webpack_require__(4);
 
 var _eventController2 = _interopRequireDefault(_eventController);
 
-var _scheduleController = __webpack_require__(10);
+var _scheduleController = __webpack_require__(5);
 
 var _scheduleController2 = _interopRequireDefault(_scheduleController);
 
-var _timerController = __webpack_require__(11);
+var _timerController = __webpack_require__(6);
 
 var _timerController2 = _interopRequireDefault(_timerController);
 
-var _idGenerator = __webpack_require__(28);
+var _idGenerator = __webpack_require__(7);
 
 var _idGenerator2 = _interopRequireDefault(_idGenerator);
 
@@ -266,8 +386,22 @@ function addEvent($dom) {
     if (config.longtapThreshold === undefined) config.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
   }
 
-  if (config.after && config.after.type === 'longtap') {
-    if (config.after.longtapThreshold === undefined) config.after.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
+  if (config.when) {
+    if (config.when.longtapThreshold === undefined && config.when.type === 'longtap') {
+      config.when.longtapThreshold = _define.DEFAULT_LONGTAP_THRESHOLD;
+    }
+
+    if (config.when.status === undefined) {
+      config.when.status = _define.STATUS_END;
+    } else if (config.when.status instanceof String) {
+      config.when.status = (0, _define.STRING_TO_STATUS)(config.when.status);
+    } else if (config.when.status instanceof Array) {
+      if (config.when.status.length === 0) {
+        config.when.status = _define.STATUS_END;
+      } else {
+        config.when.status = config.when.status.map(_define.STRING_TO_STATUS);
+      }
+    }
   }
 
   if (type === 'tap') {
@@ -433,7 +567,7 @@ function groupstart(evt) {
       base = schedule.group[_id].group[group_progress];
       //基事件使用type->的映射就可以了,细微的状态更新方便
       schedule.write_base(base);
-      base.after !== undefined && schedule.write_base(base.after);
+      base.when !== undefined && schedule.write_base(base.when);
     }
 
     //初始化完毕
@@ -526,14 +660,14 @@ function update_triggerlist(evt) {
 
       if (base.status === _define.STATUS_INIT) return;
 
-      // 需要处理after, startWith, endWith, finger
+      // 需要处理when, startWith, endWith, finger
       if (
       // startWith
       base.status === _define.STATUS_START && base_config.startWith !== undefined && base_config.startWith !== base.startWith ||
       // endWith
       base.status === _define.STATUS_END && base_config.endWith !== undefined && base_config.endWith !== base.endWith ||
-      // after
-      base_config.after !== undefined && schedule.base[(0, _tool.get_type_id)(base_config.after)].status !== _define.STATUS_END) {
+      // when
+      base_config.when instanceof Object && test_when(base_config.when) || base_config.when instanceof Array && base_config.when.every(test_when)) {
 
         if (status === _define.STATUS_START || status === _define.STATUS_MOVE) {
           group.status = _define.STATUS_CANCEL;
@@ -553,6 +687,12 @@ function update_triggerlist(evt) {
       }
     }
   });
+}
+
+function test_when(when) {
+  // debugger;
+  var base = schedule.base[(0, _tool.get_type_id)(when)];
+  return (base.status instanceof Number && base.status !== when.status || base.status instanceof Array && when.status.includes(base.status)) && (when.startWith === undefined || when.startWith !== undefined && when.startWith !== base.startWith) && (when.startWith === undefined || when.endWith !== undefined && when.endWith !== base.endWith);
 }
 
 function get_current_finger(base, base_config, evt) {
@@ -657,8 +797,152 @@ exports.group_gap_trigger = group_gap_trigger;
 exports.evt_stack = evt_stack;
 
 /***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
 
-/***/ 10:
+"use strict";
+
+
+var _index = __webpack_require__(2);
+
+var _index2 = _interopRequireDefault(_index);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+document.addEventListener("DOMContentLoaded", function () {
+  var $box = document.querySelector('#box');
+
+  var swipeCtrl = (0, _index2.default)($box, {
+    type: 'swipe',
+
+    start: function start() {
+      console.log('swipe start');
+    },
+    move: function move() {
+      console.log('swipe move');
+    },
+    end: function end() {
+      console.log('swipe end');
+    },
+    cancel: function cancel() {
+      console.log('swipe cancel');
+    }
+  });
+
+  swipeCtrl.removeEvent();
+
+  (0, _index2.default)($box, {
+    type: 'swipe',
+    when: {
+      type: 'longtap',
+      status: ['cancel', 'init']
+    },
+
+    start: function start() {
+      console.log('swipe start');
+    },
+    move: function move() {
+      console.log('swipe move');
+    },
+    end: function end() {
+      console.log('swipe end');
+    },
+    cancel: function cancel() {
+      console.log('swipe cancel');
+    }
+  });
+
+  (0, _index2.default)($box, {
+    type: 'tap',
+
+    start: function start() {
+      console.log('tap start');
+    },
+    move: function move() {
+      console.log('tap move');
+    },
+    end: function end() {
+      console.log('tap end');
+    },
+    cancel: function cancel() {
+      console.log('tap cancel');
+    }
+  });
+
+  (0, _index2.default)($box, {
+    type: 'longtap',
+
+    start: function start() {
+      console.log('longtap start');
+    },
+    move: function move() {
+      console.log('longtap move');
+    },
+    end: function end() {
+      console.log('longtap end');
+    },
+    cancel: function cancel() {
+      console.log('longtap cancel');
+    }
+  });
+
+  swipeCtrl.removeEvent();
+});
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _tool = __webpack_require__(1);
+
+var _index = __webpack_require__(2);
+
+var _define = __webpack_require__(0);
+
+function EventController(info) {
+  this.info = info;
+}
+
+EventController.prototype.enable = function () {
+  //不需要同步到group
+  this.info.config.disable = false;
+};
+
+EventController.prototype.disable = function () {
+  this.info.config.disable = true;
+};
+
+EventController.prototype.set = function (key, value) {
+  var need_to_sync_key = ['finger', 'startWith', 'endWith', 'group', 'repeat'];
+  this.info.config[key] = value;
+
+  //同步更新group
+  if (need_to_sync_key.indexOf(key) > -1) {
+    this.info.group = (0, _tool.make_flat_group)(this.info.config);
+    this.info.groupId = (0, _index._get_group_Id)(this.info.group);
+  }
+};
+
+EventController.prototype.removeEvent = function () {
+  var id = this.info.id;
+  var type = this.info.config.type;
+  var on_which = _define.EVENT[type].on;
+  var $dom = this.info.$dom;
+
+  if (on_which === _define.ON_FINGER) delete $dom.__event.list[on_which][id];else delete $dom.__event.list[on_which][type][id];
+};
+
+exports.default = EventController;
+
+/***/ }),
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -670,7 +954,7 @@ Object.defineProperty(exports, "__esModule", {
 
 var _define = __webpack_require__(0);
 
-var _tool = __webpack_require__(2);
+var _tool = __webpack_require__(1);
 
 function ScheduleController() {
   this.base = {};
@@ -794,8 +1078,7 @@ ScheduleController.prototype.empty_updated_base = function () {
 exports.default = ScheduleController;
 
 /***/ }),
-
-/***/ 11:
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -807,9 +1090,9 @@ Object.defineProperty(exports, "__esModule", {
 
 var _define = __webpack_require__(0);
 
-var _index = __webpack_require__(1);
+var _index = __webpack_require__(2);
 
-var _tool = __webpack_require__(2);
+var _tool = __webpack_require__(1);
 
 function TimerController() {
   //储存引用
@@ -893,120 +1176,7 @@ TimerController.prototype.start = function (name, delay) {
 exports.default = TimerController;
 
 /***/ }),
-
-/***/ 2:
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.make_flat_base = make_flat_base;
-exports.make_flat_group = make_flat_group;
-exports.get_base_id = get_base_id;
-exports.get_group_Id = get_group_Id;
-exports.get_type_id = get_type_id;
-exports.last_arr = last_arr;
-
-var _define = __webpack_require__(0);
-
-function make_flat_base(config) {
-  var repeat = config.repeat || 1;
-  var result = [];
-
-  for (var i = 0; i < repeat; i++) {
-    result.push(Object.assign({}, config));
-  }
-
-  return result;
-}
-
-function make_flat_group(config) {
-  if (config.group === undefined || config.group instanceof Array === false) {
-    return make_flat_base(config);
-  }
-
-  var result = [];
-
-  if (config.type !== 'group') return make_flat_base(config);
-
-  config.group.forEach(function (baseconfig) {
-    if (baseconfig.type === 'group') make_flat_group(baseconfig).forEach(function (item) {
-      result.push(item);
-    });else make_flat_base(baseconfig).forEach(function (item) {
-      result.push(item);
-    });
-  });
-
-  return result;
-}
-
-function get_base_id(config) {
-  var type = _define.EVENT[config.type].type;
-  var opts = [{
-    key: 'finger',
-    value: config.finger
-  }];
-  var opts_string = [];
-  var after = '';
-
-  opts.push();
-
-  if (type === _define.TYPE_CONTINUOUS) {
-    opts.push({
-      key: 'startWith',
-      value: config.startWith
-    });
-    opts.push({
-      key: 'endWith',
-      value: config.endWith
-    });
-  }
-
-  if (config.type === 'longtap') {
-    opts.push({
-      key: 'longtapThreshold',
-      value: config.longtapThreshold
-    });
-  }
-
-  if (config.after !== undefined) {
-    after = get_base_id(config.after);
-  }
-
-  opts.forEach(function (opt) {
-    opts_string.push(opt.key + '=' + opt.value);
-  });
-
-  return config.type + '[' + opts_string.join(',') + ']{' + after + '}';
-}
-
-function get_group_Id(config) {
-  var opts_string = [];
-
-  config.forEach(function (baseconfig) {
-    opts_string.push(get_base_id(baseconfig));
-  });
-
-  return opts_string.join(',');
-}
-
-function get_type_id(config) {
-  var type = config.type;
-  if (type === 'longtap') return type + '_' + config.longtapThreshold;
-
-  return type;
-}
-
-function last_arr(num, arr) {
-  return arr[arr.length - num];
-}
-
-/***/ }),
-
-/***/ 28:
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1026,152 +1196,5 @@ IDGenerator.prototype.new = function () {
 
 exports.default = IDGenerator;
 
-/***/ }),
-
-/***/ 8:
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-var _index = __webpack_require__(1);
-
-var _index2 = _interopRequireDefault(_index);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-document.addEventListener("DOMContentLoaded", function () {
-  var $box = document.querySelector('#box');
-
-  var swipeCtrl = (0, _index2.default)($box, {
-    type: 'swipe',
-
-    start: function start() {
-      console.log('swipe start');
-    },
-    move: function move() {
-      console.log('swipe move');
-    },
-    end: function end() {
-      console.log('swipe end');
-    },
-    cancel: function cancel() {
-      console.log('swipe cancel');
-    }
-  });
-
-  swipeCtrl.removeEvent();
-
-  (0, _index2.default)($box, {
-    type: 'swipe',
-    after: {
-      type: 'longtap'
-    },
-
-    start: function start() {
-      console.log('swipe start');
-    },
-    move: function move() {
-      console.log('swipe move');
-    },
-    end: function end() {
-      console.log('swipe end');
-    },
-    cancel: function cancel() {
-      console.log('swipe cancel');
-    }
-  });
-
-  (0, _index2.default)($box, {
-    type: 'tap',
-
-    start: function start() {
-      console.log('tap start');
-    },
-    move: function move() {
-      console.log('tap move');
-    },
-    end: function end() {
-      console.log('tap end');
-    },
-    cancel: function cancel() {
-      console.log('tap cancel');
-    }
-  });
-
-  (0, _index2.default)($box, {
-    type: 'longtap',
-
-    start: function start() {
-      console.log('longtap start');
-    },
-    move: function move() {
-      console.log('longtap move');
-    },
-    end: function end() {
-      console.log('longtap end');
-    },
-    cancel: function cancel() {
-      console.log('longtap cancel');
-    }
-  });
-
-  swipeCtrl.removeEvent();
-});
-
-/***/ }),
-
-/***/ 9:
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _tool = __webpack_require__(2);
-
-var _index = __webpack_require__(1);
-
-var _define = __webpack_require__(0);
-
-function EventController(info) {
-  this.info = info;
-}
-
-EventController.prototype.enable = function () {
-  //不需要同步到group
-  this.info.config.disable = false;
-};
-
-EventController.prototype.disable = function () {
-  this.info.config.disable = true;
-};
-
-EventController.prototype.set = function (key, value) {
-  var need_to_sync_key = ['finger', 'startWith', 'endWith', 'group', 'repeat'];
-  this.info.config[key] = value;
-
-  //同步更新group
-  if (need_to_sync_key.indexOf(key) > -1) {
-    this.info.group = (0, _tool.make_flat_group)(this.info.config);
-    this.info.groupId = (0, _index._get_group_Id)(this.info.group);
-  }
-};
-
-EventController.prototype.removeEvent = function () {
-  var id = this.info.id;
-  var type = this.info.config.type;
-  var on_which = _define.EVENT[type].on;
-  var $dom = this.info.$dom;
-
-  if (on_which === _define.ON_FINGER) delete $dom.__event.list[on_which][id];else delete $dom.__event.list[on_which][type][id];
-};
-
-exports.default = EventController;
-
 /***/ })
-
-/******/ });
+/******/ ]);

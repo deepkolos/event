@@ -20,12 +20,13 @@ var controller = addEvent(document.createElement('div'), {
   disable: Boolean,
   repeat: Number,
   finger: Number,
-  after: {//其含义是在一个group内某个事件之后,所以必须是基事件,但是需要支持after的嵌套..不支持,不想增加复杂度了
+  when: {//其含义是在一个group内某个事件之后,所以必须是基事件,但是需要支持after的嵌套..不支持,不想增加复杂度了
     type: type,
     finger: Number,
+    status: Number,// 0, -1, -2, -3, -4 分别对应init, start, move, end, cancel
     repeat: 1,//只能为1,不支持group
-    after: {}//会被忽略...其实只是为了支持after longtap,但是结构是可拓展的
-  }, //一般是longtap
+    when: {}//会被忽略...
+  }, //一般是longtap, 也可以做swipe, 有点难描述, 我觉得我应该换位置编写的
 
   longtapThreshold: Number,//longtap间隔时间,暂定
   startWith: String,//在不同的事件有不同的含义,快照值

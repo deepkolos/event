@@ -11,8 +11,8 @@ import { get_type_id } from './tool';
 
 
 function ScheduleController(){
-  this.base = {};
-  this.group = {};
+  this.base         = {};
+  this.group        = {};
   this.updated_base = [];
 }
 
