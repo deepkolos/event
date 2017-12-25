@@ -1,5 +1,5 @@
 import { EVENT_STATUS } from './define';
-import { group_gap_trigger, schedule, start_bus_bubble, evt_stack } from './index';
+import { group_gap_trigger, schedule, start_bus_bubble, evt_stack } from './main';
 import { last_arr } from './tool';
 
 function TimerController(){

@@ -1,5 +1,4 @@
-import { make_flat_group} from './tool';
-import { _get_group_Id } from './index';
+import { make_flat_group, get_group_Id } from './tool';
 import {
   EVENT,
   ON_FINGER,
@@ -31,7 +30,7 @@ EventController.prototype.set = function(key, value){
   //同步更新group
   if(need_to_sync_key.indexOf(key) > -1){
     this.info.group = make_flat_group(this.info.config);
-    this.info.groupId = _get_group_Id(this.info.group);
+    this.info.groupId = get_group_Id(this.info.group);
   }
 };
 

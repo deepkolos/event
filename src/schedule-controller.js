@@ -5,7 +5,6 @@ import {
 } from './define';
 import { get_type_id } from './tool';
 
-
 function ScheduleController(){
   this.base         = {};
   this.group        = {};
@@ -70,16 +69,19 @@ ScheduleController.prototype.set_base = function(type, set_status){
 
 
 ScheduleController.prototype.commit_to_group = function(current_process){
+  var need_to_commit = false;
   for(var gourpid in this.group) {
     let group = this.group[gourpid];
-
     if (
       group.status === current_process &&
       this.base[get_type_id(group.group[current_process])].status === EVENT_STATUS.end
     ) {
       group.status++;
+      need_to_commit = true;
+      
     }
   }
+  return need_to_commit;
 };
 
 ScheduleController.prototype.empty_base = function(){
