@@ -478,10 +478,7 @@ function bus(evt, usePatch) {
         var group = schedule.group[groupId];
         var listener = info.config[(0, _define.STATUS_TO_STRING)(group.status)];
 
-        if (group_progress !== max_group_len && group.status === _define.STATUS_END) {
-          // 意味着end事件需要压栈
-
-        } else if (info.config.disable !== true) {
+        if (info.config.disable !== true) {
           listener instanceof Function && listener.call($dom, evt);
 
           // start补一帧move, TYPE_CONTINUOUS的事件
@@ -554,20 +551,27 @@ function groupstart(evt) {
 
   //需要判断是否需要重新生成group
   group_progress === 0 && schedule.empty_group();
+  // if(group_progress !== 0) debugger;
 
   //生成schedule
   dom_involved.forEach(function ($dom) {
     var groups = $dom.__event.list[_define.ON_FINGER];
     var base;
 
-    for (var id in groups) {
-      schedule.write_group(groups[id]);
-    } //根据目前group的进度去初始化
+    if (group_progress === 0) {
+      for (var id in groups) {
+        schedule.write_group(groups[id]);
+      }
+    }
+
+    //根据目前group的进度去初始化
     for (var _id in schedule.group) {
-      base = schedule.group[_id].group[group_progress];
-      //基事件使用type->的映射就可以了,细微的状态更新方便
-      schedule.write_base(base);
-      base.when !== undefined && schedule.write_base(base.when);
+      if (schedule.group[_id].group.length > group_progress) {
+        base = schedule.group[_id].group[group_progress];
+        //基事件使用type->的映射就可以了,细微的状态更新方便
+        schedule.write_base(base);
+        base.when !== undefined && schedule.write_base(base.when);
+      }
     }
 
     //初始化完毕
@@ -577,25 +581,34 @@ function groupstart(evt) {
 }
 
 function groupend(evt) {
+  // debugger;
   // gourp commit
   schedule.commit_to_group(group_progress);
   // 设置延迟groupgap的timer
 
   group_progress = group_progress === max_group_len ? 0 : group_progress + 1;
+
+  if (group_progress !== 0) {
+    timer.start('group_gap');
+  }
 }
 
 function group_gap_trigger() {
-  triggerlist = group_gap_stack;
-  group_gap_stack = []; //虽然js内置的堆栈的操作,但是在代码的语义上面欠缺
   start_bus_bubble({
     type: 'group_gap'
+  }, function () {}, function () {}, function () {
+    // debugger;
+    triggerlist = group_gap_stack;
+    group_gap_stack = []; //虽然js内置的堆栈的操作,但是在代码的语义上面欠缺
   });
 }
 
 //工具函数, 不过不太适合拆分到tool里面
-function start_bus_bubble(evt, startPatch, endPatch) {
+function start_bus_bubble(evt, startPatch, endPatch, triggerListPatch) {
   // debugger;
   bubblestart(evt, startPatch);
+
+  triggerListPatch instanceof Function && triggerListPatch();
 
   dom_involved.forEach(function ($dom) {
     $dom.__event.bus(evt, startPatch !== undefined || endPatch !== undefined);
@@ -634,6 +647,7 @@ function update_triggerlist(evt) {
   max_group_len = group_progress;
   var tmp_len, group, base, base_config;
   var groupid_in_process = [];
+  var longer_groups = [];
 
   // 找出max_group_len
   if (schedule.updated_base.length !== 0) {
@@ -643,6 +657,8 @@ function update_triggerlist(evt) {
         tmp_len = group.group.length - 1;
 
         if (tmp_len > max_group_len) max_group_len = tmp_len;
+
+        if (tmp_len > group_progress) longer_groups.push(group);
 
         if (schedule.updated_base.includes((0, _tool.get_type_id)((0, _tool.last_arr)(1, group.group)))) groupid_in_process.push(groupId);
       }
@@ -678,12 +694,23 @@ function update_triggerlist(evt) {
 
       if (base_config.finger !== undefined && base_config.finger === get_current_finger(base, base_config, evt) || //longtap的自定义触发引用需要更换
       base_config.finger === undefined) {
+        // if (group.status === STATUS_END) debugger;
+        // 需要查看是否有更长的group, 是否还有机会触发
         if (group_progress < max_group_len && group.status === _define.STATUS_END) {
           // 把这次的触发压到堆栈里面去
-          group_gap_stack.push(groupId);
-        } else {
-          triggerlist.push(groupId);
+          // debugger;
+          if (longer_groups.some(function (group) {
+            // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
+            var base_status = schedule.base[(0, _tool.get_type_id)(group.group[group_progress])].status;
+
+            return base_status === _define.STATUS_START || base_status === _define.STATUS_MOVE || base_status === _define.STATUS_END;
+          })) {
+            group_gap_stack.push(groupId);
+            return;
+          }
         }
+
+        triggerlist.push(groupId);
       }
     }
   });
@@ -854,7 +881,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   (0, _index2.default)($box, {
     type: 'tap',
-    repeat: 2,
+    repeat: 3,
 
     start: function start() {
       console.log('tap start');

@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   addEvent($box, {
     type:   'tap',
-    repeat: 2,
+    repeat: 3,
 
     start:  function(){console.log('tap start');},
     move:   function(){console.log('tap move');},
