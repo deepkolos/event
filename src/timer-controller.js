@@ -75,7 +75,7 @@ TimerController.prototype.start = function(name, delay){
       });
     });
   }else if(name === 'group_gap') {
-    _delay = 250;
+    _delay = 300;
     _warp_callback(group_gap_trigger);
   }
 

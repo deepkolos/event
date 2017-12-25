@@ -551,7 +551,7 @@ function groupstart(evt) {
 
   //需要判断是否需要重新生成group
   group_progress === 0 && schedule.empty_group();
-  // if(group_progress !== 0) debugger;
+  if (group_progress === 0) console.log('进度重置了');
 
   //生成schedule
   dom_involved.forEach(function ($dom) {
@@ -596,7 +596,10 @@ function groupend(evt) {
 function group_gap_trigger() {
   start_bus_bubble({
     type: 'group_gap'
-  }, function () {}, function () {}, function () {
+  }, function () {}, function () {
+    group_progress = 0;
+    console.log('重置进度');
+  }, function () {
     // debugger;
     triggerlist = group_gap_stack;
     group_gap_stack = []; //虽然js内置的堆栈的操作,但是在代码的语义上面欠缺
@@ -1194,7 +1197,7 @@ TimerController.prototype.start = function (name, delay) {
       });
     });
   } else if (name === 'group_gap') {
-    _delay = 250;
+    _delay = 300;
     _warp_callback(_index.group_gap_trigger);
   }
 
