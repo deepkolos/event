@@ -17,7 +17,7 @@ const START_END_WITH = {
   rotate: new Type('clockwise', 'anticlockwise'),
 };
 
-const EVENT_STATUS = new Type({
+const STATUS = new Type({
   [-0]: 'init',
   [-1]: 'start',
   [-2]: 'move',
@@ -105,7 +105,7 @@ export {
   ON_EVENT,
 
   START_END_WITH,
-  EVENT_STATUS,
+  STATUS,
 
   TYPE_UNKNOW,
   TYPE_CONTINUOUS,

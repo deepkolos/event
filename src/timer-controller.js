@@ -1,5 +1,5 @@
 import { last_arr }     from './tool';
-import { EVENT_STATUS } from './define';
+import { STATUS } from './define';
 import { 
   schedule,
   evt_stack,
@@ -58,7 +58,7 @@ TimerController.prototype.start = function(name, delay){
           type: 'longtap',
           touches: last_arr(1, evt_stack.start).touches
         }, function(){
-          schedule.set_base('longtap', EVENT_STATUS.start);
+          schedule.set_base('longtap', STATUS.start);
         });
       }
 
@@ -74,8 +74,8 @@ TimerController.prototype.start = function(name, delay){
         type: 'longtap',
         touches: last_arr(1, evt_stack.start).touches
       }, function(){
-        schedule.set_base(name, EVENT_STATUS.end);
-        schedule.set_base('tap', EVENT_STATUS.cancel);
+        schedule.set_base(name, STATUS.end);
+        schedule.set_base('tap', STATUS.cancel);
       });
     });
   }else if(name === 'group_gap') {

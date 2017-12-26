@@ -1,6 +1,6 @@
 import { 
   EVENT,
-  EVENT_STATUS,
+  STATUS,
   START_END_WITH,
   TYPE_CONTINUOUS,
   DEFAULT_LONGTAP_THRESHOLD
@@ -190,19 +190,25 @@ export function init_when (config){
     }
 
     if(evt_when_status === undefined){
-      config.when.status = EVENT_STATUS.end;
+      config.when.status = STATUS.end;
 
     } else if (evt_when_status instanceof String) {
-      config.when.status = EVENT_STATUS[config.when.status];
+      config.when.status = STATUS[config.when.status];
 
     } else if(evt_when_status instanceof Array) {
       if (evt_when_status.length === 0) {
-        config.when.status = EVENT_STATUS.end;
+        config.when.status = STATUS.end;
       } else {
         config.when.status = evt_when_status.map(function(string){
-          return EVENT_STATUS[string];
+          return STATUS[string];
         });
       }
     }
+  }
+}
+
+export function clean_arr (arr) {
+  for (var i = 0, len = arr.length; i < len; i++) {
+    delete arr[i];
   }
 }

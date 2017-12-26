@@ -1,7 +1,7 @@
 import {
   EVENT,
-  TYPE_CONTINUOUS,
-  EVENT_STATUS
+  STATUS,
+  TYPE_CONTINUOUS
 } from './define';
 import { get_type_id } from './tool';
 
@@ -17,30 +17,30 @@ ScheduleController.prototype.set_base = function(type, set_status){
     status = this.base[type].status;
 
     // 设置init
-    if (set_status === EVENT_STATUS.init && status !== EVENT_STATUS.end) {
-      this.base[type].status = EVENT_STATUS.init;
+    if (set_status === STATUS.init && status !== STATUS.end) {
+      this.base[type].status = STATUS.init;
       return;
     }
 
     if (
       // 设置start
       (
-        set_status === EVENT_STATUS.start && status === EVENT_STATUS.init
+        set_status === STATUS.start && status === STATUS.init
       ) ||
       // 设置move
       (
-        set_status === EVENT_STATUS.move &&
-        (status === EVENT_STATUS.start || status === EVENT_STATUS.move)
+        set_status === STATUS.move &&
+        (status === STATUS.start || status === STATUS.move)
       ) ||
       // 设置end
       (
-        set_status === EVENT_STATUS.end &&
-        (status === EVENT_STATUS.start || status === EVENT_STATUS.move)
+        set_status === STATUS.end &&
+        (status === STATUS.start || status === STATUS.move)
       ) ||
       // 设置cancel
       (
-        set_status === EVENT_STATUS.cancel &&
-        (status === EVENT_STATUS.start || status === EVENT_STATUS.move)
+        set_status === STATUS.cancel &&
+        (status === STATUS.start || status === STATUS.move)
       )
     ) {
       this.base[type].status = set_status;
@@ -54,9 +54,9 @@ ScheduleController.prototype.set_base = function(type, set_status){
 
       if(id.indexOf('longtap') === 0){
         if(
-          (status === EVENT_STATUS.init && set_status === EVENT_STATUS.cancel) ||
-          (status === EVENT_STATUS.end && set_status === EVENT_STATUS.cancel) ||
-          (status === EVENT_STATUS.init && set_status === EVENT_STATUS.end)
+          (status === STATUS.init && set_status === STATUS.cancel) ||
+          (status === STATUS.end && set_status === STATUS.cancel) ||
+          (status === STATUS.init && set_status === STATUS.end)
         )
           return;
 
@@ -73,7 +73,8 @@ ScheduleController.prototype.commit_to_group = function(current_process){
     let group = this.group[gourpid];
     if (
       group.status === current_process &&
-      this.base[get_type_id(group.group[current_process])].status === EVENT_STATUS.end
+      current_process < group.group.length - 1 &&
+      this.base[group.group[current_process].type_id].status === STATUS.end
     ) {
       group.status++;
       need_to_commit = true;
@@ -98,13 +99,13 @@ ScheduleController.prototype.write_base = function(config){
   if(type === 'longtap'){
     if(this.base[type+'_'+config.longtapThreshold] === undefined){
       this.base[type+'_'+config.longtapThreshold] = {
-        status: EVENT_STATUS.init,
+        status: STATUS.init,
         threshold: config.longtapThreshold
       };
     }
   }else if(this.base[type] === undefined){
     this.base[type] = {
-      status: EVENT_STATUS.init
+      status: STATUS.init
     };
   }
 
@@ -117,7 +118,7 @@ ScheduleController.prototype.write_base = function(config){
 ScheduleController.prototype.write_group = function(config){
   if(this.group[config.groupId] === undefined )
     this.group[config.groupId] = {
-      status: EVENT_STATUS.init,
+      status: STATUS.init,
       group: config.group
     };
 };
@@ -131,7 +132,7 @@ ScheduleController.prototype.set_longtap = function(status){
 };
 
 ScheduleController.prototype.get_base_of_groupId = function(groupId){
-  return this.base[get_type_id(this.get_base_config_of_groupId(groupId))];
+  return this.base[this.get_base_config_of_groupId(groupId).type_id];
 };
 
 ScheduleController.prototype.get_base_config_of_groupId = function(groupId){

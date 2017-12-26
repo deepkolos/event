@@ -5,14 +5,15 @@ import ScheduleController from './schedule-controller';
 import {
   last_arr,
   init_when,
+  clean_arr,
   get_type_id,
   get_group_Id,
   config_equal,
-  make_flat_group
+  make_flat_group,
 } from './tool';
 import {
   EVENT,
-  EVENT_STATUS,
+  STATUS,
 
   ON_DOM,
   ON_EVENT,
@@ -107,19 +108,21 @@ function addEvent($dom, config = {}) {
 
 // 内部实现
 var schedule = new ScheduleController();
-var triggerlist; // []
-var dom_involved;// [] order from bubble start to end
+var triggerlist;            // []
+var dom_involved;           // [] order from bubble start to end
 var bubble_started = false;
 var last_dom_involved;
-var group_progress = 0;
 var max_group_len = 0;
+var group_progress = 0;
 var actived_finger_num = 0;
-// var bubbleend_task = [];
-var group_gap_stack = [];//储存groupid因为还有更长的group而已延迟触发的end事件
+var group_gap_stack = [];   // 储存groupid因为还有更长的group而已延迟触发的end事件
 var timer = new TimerController(schedule, start_bus_bubble);
 var evt_stack = {
   start: [],
-  // move: [],
+  move: {
+    last:    null,
+    current: null
+  },
   end: []
 };
 
@@ -141,14 +144,14 @@ function bus(evt, usePatch) {
       let info = grouplist[id];
       if (info.groupId === groupId) {
         let group = schedule.group[groupId];
-        let listener = info.config[EVENT_STATUS[group.status]];
+        let listener = info.config[STATUS[group.status]];
 
         if (info.config.disable !== true) {
           listener instanceof Function && listener.call($dom, evt);
 
           // start补一帧move, TYPE_CONTINUOUS的事件
           EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
-            group.status === EVENT_STATUS.start &&
+            group.status === STATUS.start &&
             info.config.move instanceof Function &&
             info.config.move.call($dom, evt);
         }
@@ -205,7 +208,7 @@ function groupstart(evt) {
   group_gap_stack.forEach(function (groupId) {
     triggerlist.push(groupId);
     //并且设置cancel事件
-    schedule.group[groupId].status = EVENT_STATUS.cancel;
+    schedule.group[groupId].status = STATUS.cancel;
   });
   evt.path.forEach(function ($dom) {
     if ($dom.__event !== undefined) {
@@ -254,6 +257,17 @@ function groupend(evt) {
     timer.start('group_gap');
   } else {
     group_progress = 0;
+    // 清空evt_stack
+    clean_arr(evt_stack.start);
+    delete evt_stack.start;
+    evt_stack.start = [];
+
+    clean_arr(evt_stack.end);
+    delete evt_stack.end;
+    evt_stack.end = [];
+
+    delete evt_stack.move.current;
+    delete evt_stack.move.last;
   }
 }
 
@@ -271,7 +285,7 @@ function group_gap_trigger() {
 }
 
 
-//工具函数, 不过不太适合拆分到tool里面
+// 工具函数, 不过不太适合拆分到tool里面
 function start_bus_bubble(evt, startPatch, endPatch, triggerListPatch) {
   // debugger;
   bubblestart(evt, startPatch);
@@ -308,10 +322,10 @@ function update_base_status(evt) {
 
 function update_triggerlist(evt) {
   // goroup的触发的规则
-  max_group_len = group_progress;
-  var tmp_len, group, base, base_config;
+  max_group_len          = group_progress;
+  var longer_groups      = [];
   var groupid_in_process = [];
-  var longer_groups = [];
+  var tmp_len, group, base, base_config;
 
   // 找出max_group_len, 可以在groupstart的时候生成, 不过还是可以的
   if (schedule.updated_base.length !== 0) {
@@ -319,8 +333,8 @@ function update_triggerlist(evt) {
       group = schedule.group[groupId];
       if (
         group.status === group_progress ||
-        group.status === EVENT_STATUS.start ||
-        group.status === EVENT_STATUS.move
+        group.status === STATUS.start ||
+        group.status === STATUS.move
       ) {
         tmp_len = group.group.length - 1;
 
@@ -330,11 +344,14 @@ function update_triggerlist(evt) {
         if(tmp_len > group_progress)
           longer_groups.push(group);
 
-        if(schedule.updated_base.includes(get_type_id(last_arr(1, group.group))))
+        if(schedule.updated_base.includes(last_arr(1, group.group).type_id))
           groupid_in_process.push(groupId);
       }
     }
   }
+
+  // 初始化更新base的相关信息
+  update_base_info();
 
   // 更新triggerList,问题,在进度的状态不一定是这次bubble里修改的
   groupid_in_process.forEach(function (groupId) {
@@ -343,25 +360,25 @@ function update_triggerlist(evt) {
     // 同步base的状态到group里面
     if (
       group.status === group.group.length - 1 ||
-      group.status === EVENT_STATUS.start ||
-      group.status === EVENT_STATUS.move
+      group.status === STATUS.start ||
+      group.status === STATUS.move
     ) {
       base_config = schedule.get_base_config_of_groupId(groupId);
       base = schedule.get_base_of_groupId(groupId);
 
-      if (base.status === EVENT_STATUS.init)
+      if (base.status === STATUS.init)
         return;
 
       // 需要处理when, startWith, endWith, finger
       if (
         // startWith
         (
-          base.status === EVENT_STATUS.start &&
+          base.status <= STATUS.start &&
           !config_equal(base.startWith, base_config.startWith)
         ) ||
         // endWith
         (
-          base.status === EVENT_STATUS.end &&
+          base.status === STATUS.end &&
           !config_equal(base.endWith, base_config.endWith)
         ) ||
         // when
@@ -374,8 +391,8 @@ function update_triggerlist(evt) {
         )
       ) {
 
-        if(status === EVENT_STATUS.start || status === EVENT_STATUS.move) {
-          group.status = EVENT_STATUS.cancel;
+        if(status === STATUS.start || status === STATUS.move) {
+          group.status = STATUS.cancel;
         }
 
       } else {
@@ -389,18 +406,18 @@ function update_triggerlist(evt) {
       ) {
         // if (group.status === EVENT_STATUS.end) debugger;
         // 需要查看是否有更长的group, 是否还有机会触发
-        if (group_progress < max_group_len && group.status === EVENT_STATUS.end) {
+        if (group_progress < max_group_len && group.status === STATUS.end) {
           // 把这次的触发压到堆栈里面去
           // debugger;
           if (longer_groups.some(function(group){
             // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
             // get_type_id绝对有问题, 不应该这么频繁出现的
-            var base_status = schedule.base[get_type_id(group.group[group_progress])].status;
+            var base_status = schedule.base[group.group[group_progress].type_id].status;
   
             return (
-              base_status === EVENT_STATUS.start ||
-              base_status === EVENT_STATUS.move ||
-              base_status === EVENT_STATUS.end
+              base_status === STATUS.start ||
+              base_status === STATUS.move ||
+              base_status === STATUS.end
             );
           })) {
             group_gap_stack.push(groupId);
@@ -414,8 +431,44 @@ function update_triggerlist(evt) {
   });
 }
 
+function update_base_info () {
+  schedule.updated_base.forEach(function(type_id){
+    var base = schedule.base[type_id];
+
+    if(base.status === STATUS.start) {
+      // 生成startWidth
+      if (type_id === 'swipe') {
+        //
+      } else 
+      
+      if (type_id === 'pinch') {
+        //
+      } else
+
+      if (type_id === 'rotate') {
+        //
+      }
+    } else 
+    
+    if(base.status === STATUS.end) {
+      // endWith
+      if (type_id === 'swipe') {
+        //
+      } else 
+      
+      if (type_id === 'pinch') {
+        //
+      } else
+
+      if (type_id === 'rotate') {
+        //
+      }
+    }
+  });
+}
+
 function test_when(when){
-  var base = schedule.base[get_type_id(when)];
+  var base = schedule.base[when.type_id];
   return (
     !config_equal(base.status, when.status)
   ) || (
@@ -432,11 +485,11 @@ function get_current_finger(base, base_config, evt) {
   case 'tap':
 
     switch (base.status) {
-    case EVENT_STATUS.start:
+    case STATUS.start:
       return last_arr(1, evt_stack.start).touches.length;
-    case EVENT_STATUS.end:
+    case STATUS.end:
       return last_arr(1, evt_stack.start).touches.length;
-    case EVENT_STATUS.cancel:
+    case STATUS.cancel:
       return last_arr(1, evt_stack.start).touches.length;
     }
 
@@ -444,9 +497,9 @@ function get_current_finger(base, base_config, evt) {
   case 'longtap':
 
     switch (base.status) {
-    case EVENT_STATUS.start:
+    case STATUS.start:
       return last_arr(1, evt_stack.start).touches.length;
-    case EVENT_STATUS.end:
+    case STATUS.end:
       return last_arr(1, evt_stack.start).touches.length;
     }
 
@@ -456,7 +509,7 @@ function get_current_finger(base, base_config, evt) {
   return evt.touches.length;
 }
 
-//update trigger status, 这里仅仅做更新triggerlist
+// update base status
 function touchstart(evt) {
   var touch_num = evt.touches.length;
   var last_actived_finger_num = actived_finger_num;
@@ -471,19 +524,19 @@ function touchstart(evt) {
       start_bus_bubble(
         last_arr(2, evt_stack.start),
         function () {// start patch
-          schedule.set_base('tap', EVENT_STATUS.cancel);
-          schedule.set_base('longtap', EVENT_STATUS.cancel);
+          schedule.set_base('tap', STATUS.cancel);
+          schedule.set_base('longtap', STATUS.cancel);
         },
         function () {// end patch
-          schedule.set_base('longtap', EVENT_STATUS.init);
-          schedule.set_base('tap', EVENT_STATUS.init);
+          schedule.set_base('longtap', STATUS.init);
+          schedule.set_base('tap', STATUS.init);
         }
       );
     }
 
     // 更新tap status->start, 这个是使用现有的tap的longtapThreshold来区别的所以是没有
     // 这一层是源触发的bus
-    schedule.set_base('tap', EVENT_STATUS.start);
+    schedule.set_base('tap', STATUS.start);
   }
 
   //longtap 的16ms的定时器
@@ -492,27 +545,33 @@ function touchstart(evt) {
 
 function touchmove(evt) {
   // debugger;
-  schedule.set_base('tap', EVENT_STATUS.cancel);
-  schedule.set_base('longtap', EVENT_STATUS.cancel);
-  schedule.set_base('swipe', EVENT_STATUS.move);
-  schedule.set_base('swipe', EVENT_STATUS.start);
+  schedule.set_base('tap', STATUS.cancel);
+  schedule.set_base('longtap', STATUS.cancel);
+  schedule.set_base('swipe', STATUS.move);
+  schedule.set_base('swipe', STATUS.start);
   timer.stop('longtap');
   // 将会在start里面补一帧的move
 
+  evt_stack.move.last = evt_stack.move.current
+                      ? evt_stack.move.current
+                      : last_arr(1, evt_stack.start);
+
+  evt_stack.move.current = evt;
+
   if (evt.touches.length > 1) {
-    schedule.set_base('pinch', EVENT_STATUS.move);
-    schedule.set_base('pinch', EVENT_STATUS.start);
-    schedule.set_base('rotate', EVENT_STATUS.move);
-    schedule.set_base('rotate', EVENT_STATUS.start);
+    schedule.set_base('pinch', STATUS.move);
+    schedule.set_base('pinch', STATUS.start);
+    schedule.set_base('rotate', STATUS.move);
+    schedule.set_base('rotate', STATUS.start);
   }
 }
 
 function touchend(evt) {
   if (evt.touches.length === 0) {
-    schedule.set_base('tap', EVENT_STATUS.end);
-    schedule.set_base('swipe', EVENT_STATUS.end);
+    schedule.set_base('tap', STATUS.end);
+    schedule.set_base('swipe', STATUS.end);
   }
-  schedule.set_base('longtap', EVENT_STATUS.cancel);
+  schedule.set_base('longtap', STATUS.cancel);
   timer.stop('longtap_debounce');
 }
 

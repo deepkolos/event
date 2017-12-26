@@ -12,7 +12,8 @@
   "rules": {
     "indent": [
       "error",
-      2
+      2,
+      { "ignoredNodes": ["ConditionalExpression"] }
     ],
     "semi": [
       "error",

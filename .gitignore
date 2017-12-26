@@ -7,6 +7,7 @@ yarn-error.log*
 test/unit/coverage
 yarn.lock
 package-lock.json
+example/index.out.js
 
 # Editor directories and files
 .idea
