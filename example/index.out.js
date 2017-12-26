@@ -1147,8 +1147,6 @@ document.addEventListener("DOMContentLoaded", function () {
       console.log('longtap cancel');
     }
   });
-
-  swipeCtrl.removeEvent();
 });
 
 /***/ }),
@@ -1256,11 +1254,10 @@ TimerController.prototype.start = function (name, delay) {
       if (longtap_ids.length !== 0) {
         // debugger;
         (0, _main.start_bus_bubble)({
-          type: 'longtap',
-          touches: (0, _tool.last_arr)(1, _main.evt_stack.start.increase).touches
+          type: 'longtap'
         }, function () {
           _main.schedule.set_base('longtap', _define.STATUS.start);
-        });
+        }, function () {});
       }
 
       // 设置longtap end timer
@@ -1272,12 +1269,11 @@ TimerController.prototype.start = function (name, delay) {
     _delay = delay;
     _warp_callback(function () {
       (0, _main.start_bus_bubble)({
-        type: 'longtap',
-        touches: (0, _tool.last_arr)(1, _main.evt_stack.start.increase).touches
+        type: 'longtap'
       }, function () {
         _main.schedule.set_base(name, _define.STATUS.end);
         _main.schedule.set_base('tap', _define.STATUS.cancel);
-      });
+      }, function () {});
     });
   } else if (name === 'group_gap') {
     _delay = 300;

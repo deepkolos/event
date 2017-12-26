@@ -4,51 +4,50 @@ document.addEventListener("DOMContentLoaded", function() {
   var $box = document.querySelector('#box');
 
   var swipeCtrl = addEvent($box, {
-    type: 'swipe',
+    type:      'swipe',
 
-    start:  function(){console.log('swipe start');},
-    move:   function(){console.log('swipe move');},
-    end:    function(){console.log('swipe end');},
-    cancel: function(){console.log('swipe cancel');},
+    start:     function(){console.log('swipe start');},
+    move:      function(){console.log('swipe move');},
+    end:       function(){console.log('swipe end');},
+    cancel:    function(){console.log('swipe cancel');},
   });
 
   swipeCtrl.removeEvent();
 
   addEvent($box, {
-    type: 'swipe',
+    type:      'swipe',
     when: {
-      type:   'longtap',
-      status: ['cancel', 'init'],
+      type:    'longtap',
+      status:  ['cancel', 'init'],
       longtapThreshold: 1000/*ms*/
     },
 
-    endWith: ['right', 'vertical', 'horizontal'],
+    endWith:   ['right', 'vertical', 'horizontal'],
     startWith: ['left'],
 
-    start:  function(){console.log('swipe start');},
-    move:   function(){console.log('swipe move');},
-    end:    function(){console.log('swipe end');},
-    cancel: function(){console.log('swipe cancel');},
+    start:     function(){console.log('swipe start');},
+    move:      function(){console.log('swipe move');},
+    end:       function(){console.log('swipe end');},
+    cancel:    function(){console.log('swipe cancel');},
   });
 
   addEvent($box, {
-    type:   'tap',
-    repeat: 3,
+    type:      'tap',
+    repeat:    3,
 
-    start:  function(){console.log('tap start');},
-    move:   function(){console.log('tap move');},
-    end:    function(){console.log('tap end');},
-    cancel: function(){console.log('tap cancel');},
+    start:     function(){console.log('tap start');},
+    move:      function(){console.log('tap move');},
+    end:       function(){console.log('tap end');},
+    cancel:    function(){console.log('tap cancel');},
   });
 
   addEvent($box, {
-    type: 'longtap',
+    type:      'longtap',
 
-    start:  function(){console.log('longtap start');},
-    move:   function(){console.log('longtap move');},
-    end:    function(){console.log('longtap end');},
-    cancel: function(){console.log('longtap cancel');},
+    start:     function(){console.log('longtap start');},
+    move:      function(){console.log('longtap move');},
+    end:       function(){console.log('longtap end');},
+    cancel:    function(){console.log('longtap cancel');},
   });
 
-  swipeCtrl.removeEvent();
 });

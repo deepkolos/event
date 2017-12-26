@@ -56,10 +56,9 @@ TimerController.prototype.start = function(name, delay){
         // debugger;
         start_bus_bubble({
           type: 'longtap',
-          touches: last_arr(1, evt_stack.start.increase).touches
         }, function(){
           schedule.set_base('longtap', STATUS.start);
-        });
+        }, function (){});
       }
 
       // 设置longtap end timer
@@ -72,11 +71,10 @@ TimerController.prototype.start = function(name, delay){
     _warp_callback(function(){
       start_bus_bubble({
         type: 'longtap',
-        touches: last_arr(1, evt_stack.start.increase).touches
       }, function(){
         schedule.set_base(name, STATUS.end);
         schedule.set_base('tap', STATUS.cancel);
-      });
+      }, function (){});
     });
   }else if(name === 'group_gap') {
     _delay = 300;
