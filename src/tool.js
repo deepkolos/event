@@ -136,7 +136,7 @@ function init_start_end_with_helper (type, config) {
   var evt_type = config.type;
   var _with    = config[type];
 
-  if (_with instanceof String) {
+  if ( typeof _with === 'string') {
     result = explode_with_string(_with, evt_type);
   } else if (_with instanceof Array) {
     _with.forEach(function(string){
@@ -171,6 +171,7 @@ function explode_with_string (string, evt_type){
 }
 
 export function init_start_end_with (config){
+  
   // 只有连续事件才有
   if(EVENT[config.type].type === TYPE_CONTINUOUS) {
     init_start_end_with_helper('endWith', config);
@@ -179,8 +180,10 @@ export function init_start_end_with (config){
 }
 
 export function init_when (config){
-  if (config.when) {
+  if (config.when instanceof Object) {
     var evt_when_status = config.when.status;
+
+    config.when.type_id = get_type_id(config.when);
 
     if (
       config.when.longtapThreshold === undefined && 
@@ -204,6 +207,10 @@ export function init_when (config){
         });
       }
     }
+  } else
+
+  if (config.when instanceof Array) {
+    //
   }
 }
 
@@ -211,4 +218,78 @@ export function clean_arr (arr) {
   for (var i = 0, len = arr.length; i < len; i++) {
     delete arr[i];
   }
+}
+
+export function get_swipe_offset (start_points, end_points) {
+  var end_orthocenter   = get_orthocenter(end_points);
+  var start_orthocenter = get_orthocenter(start_points);
+
+  return {
+    x: end_orthocenter.x - start_orthocenter.x,
+    y: end_orthocenter.y - start_orthocenter.y,
+  };
+}
+
+export function get_orthocenter (points) {
+  var i    = 0;
+  var x    = 0;
+  var y    = 0;
+  var tmp  = 0;
+  var area = 0;
+  var len  = points.length - 1;
+  
+  if (len === 0) {
+    return points[0];
+  } else
+
+  if (len === -1) {
+    console.log('没有手指~');
+    return {x: 0, y: 0};
+  }
+
+  debugger;
+
+
+  for (; i < len; i++) {
+    tmp   = points[i].x * points[i+1].y - points[i].y * points[i+1].x;
+    area += tmp;
+    x    += tmp * (points[i].x + points[i+1].x);
+    y    += tmp * (points[i].y + points[i+1].y);
+  }
+
+  tmp   = points[len].x * points[0].y - points[len].y * points[0].x;
+  area += tmp;
+  x    += tmp * (points[len].x + points[0].x);
+  y    += tmp * (points[len].y + points[0].y);
+
+  area /= 2;
+  x     = x / (6 * area);
+  y     = y / (6 * area);
+
+  return {
+    x: x,
+    y: y
+  };
+}
+
+export function get_destance (point_a, point_b) {
+  return Math.sqrt(
+    Math.pow(Math.abs(point_a.x - point_b.x), 2) + 
+    Math.pow(Math.abs(point_a.y - point_b.y), 2)
+  );
+}
+
+export function get_points_from_fingers (fingers) {
+  var i      = 0;
+  var result = [];
+  var len    = fingers.length;
+
+  for (; i < len; i++) {
+    result.push({
+      x: fingers[i].clientX,
+      y: fingers[i].clientY
+    });
+  }
+
+  return result;
 }

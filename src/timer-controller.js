@@ -56,7 +56,7 @@ TimerController.prototype.start = function(name, delay){
         // debugger;
         start_bus_bubble({
           type: 'longtap',
-          touches: last_arr(1, evt_stack.start).touches
+          touches: last_arr(1, evt_stack.start.increase).touches
         }, function(){
           schedule.set_base('longtap', STATUS.start);
         });
@@ -72,7 +72,7 @@ TimerController.prototype.start = function(name, delay){
     _warp_callback(function(){
       start_bus_bubble({
         type: 'longtap',
-        touches: last_arr(1, evt_stack.start).touches
+        touches: last_arr(1, evt_stack.start.increase).touches
       }, function(){
         schedule.set_base(name, STATUS.end);
         schedule.set_base('tap', STATUS.cancel);

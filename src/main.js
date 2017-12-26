@@ -10,6 +10,8 @@ import {
   get_group_Id,
   config_equal,
   make_flat_group,
+  get_swipe_offset,
+  get_points_from_fingers
 } from './tool';
 import {
   EVENT,
@@ -24,7 +26,8 @@ import {
   TYPE_CONTINUOUS,
 
   DEFAULT_TAP_FINGER,
-  DEFAULT_LONGTAP_THRESHOLD
+  DEFAULT_LONGTAP_THRESHOLD,
+  START_END_WITH
 } from './define';
 
 // 对外接口
@@ -55,9 +58,9 @@ function addEvent($dom, config = {}) {
     $dom.__event.bus = bus.bind($dom);
   }
 
+  var group, _info;
   var list  = $dom.__event.list;
   var newId = $dom.__event.IDGenerator.new();
-  var group, _info;
 
   //设置一些默认值
   if (type === 'longtap') {
@@ -79,11 +82,11 @@ function addEvent($dom, config = {}) {
 
     //基事件需要被转化为单个的group
     _info = {
-      id: newId,
-      $dom: $dom,
-      config: config,
-      group: group,
-      groupId: get_group_Id(group)
+      id:       newId,
+      $dom:     $dom,
+      config:   config,
+      group:    group,
+      groupId:  get_group_Id(group)
     };
     list[on_which][newId] = _info;
   } else {
@@ -95,8 +98,8 @@ function addEvent($dom, config = {}) {
     // 配置一定是需要配置上默认值,这样就可以实现配置和代码的分离了
     // 但是不同类别的又需要不同的默认配置就..唉心累啊
     _info = {
-      id: newId,
-      $dom: $dom,
+      id:     newId,
+      $dom:   $dom,
       config: config
     };
     list[on_which][type][newId] = _info;
@@ -108,22 +111,40 @@ function addEvent($dom, config = {}) {
 
 // 内部实现
 var schedule = new ScheduleController();
-var triggerlist;            // []
-var dom_involved;           // [] order from bubble start to end
-var bubble_started = false;
-var last_dom_involved;
-var max_group_len = 0;
-var group_progress = 0;
+var timer    = new TimerController(schedule, start_bus_bubble);
+
+var max_group_len      = 0;
+var group_progress     = 0;
 var actived_finger_num = 0;
-var group_gap_stack = [];   // 储存groupid因为还有更长的group而已延迟触发的end事件
-var timer = new TimerController(schedule, start_bus_bubble);
+var triggerlist        = [];
+var dom_involved       = [];     // order from bubble start to end
+var group_gap_stack    = [];     // 储存groupid因为还有更长的group而已延迟触发的end事件
+var last_dom_involved  = [];
+var bubble_started     = false;
+
+var cache = {
+  start_points: null
+};
+
 var evt_stack = {
-  start: [],
-  move: {
-    last:    null,
-    current: null
+  start: {
+    increase: [],
+    current:  null
+  },
+  move:  {
+    last:     null,
+    current:  null
+  },
+  swipe: {
+    start:    null
   },
   end: []
+};
+
+var offset_stack = {
+  swipe:  [],
+  pinch:  [],
+  rotate: []
 };
 
 function bus(evt, usePatch) {
@@ -258,16 +279,18 @@ function groupend(evt) {
   } else {
     group_progress = 0;
     // 清空evt_stack
-    clean_arr(evt_stack.start);
-    delete evt_stack.start;
-    evt_stack.start = [];
+    clean_arr(evt_stack.start.increase);
+    delete evt_stack.start.increase;
+    evt_stack.start.increase = [];
 
     clean_arr(evt_stack.end);
     delete evt_stack.end;
     evt_stack.end = [];
 
-    delete evt_stack.move.current;
     delete evt_stack.move.last;
+    delete evt_stack.swipe.start;
+    delete evt_stack.move.current;
+    delete evt_stack.start.current;
   }
 }
 
@@ -276,7 +299,7 @@ function group_gap_trigger() {
     type: 'group_gap'
   }, function(){}, function(){
     group_progress = 0;
-    console.log('重置进度');
+    console.log('group_gap 重置进度');
   }, function(){
     // debugger;
     triggerlist = group_gap_stack;
@@ -390,8 +413,8 @@ function update_triggerlist(evt) {
           base_config.when.every(test_when)
         )
       ) {
-
-        if(status === STATUS.start || status === STATUS.move) {
+        
+        if(group.status === STATUS.start || group.status === STATUS.move) {
           group.status = STATUS.cancel;
         }
 
@@ -408,7 +431,6 @@ function update_triggerlist(evt) {
         // 需要查看是否有更长的group, 是否还有机会触发
         if (group_progress < max_group_len && group.status === STATUS.end) {
           // 把这次的触发压到堆栈里面去
-          // debugger;
           if (longer_groups.some(function(group){
             // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
             // get_type_id绝对有问题, 不应该这么频繁出现的
@@ -434,11 +456,13 @@ function update_triggerlist(evt) {
 function update_base_info () {
   schedule.updated_base.forEach(function(type_id){
     var base = schedule.base[type_id];
+    var offset = offset_stack[type_id];
 
     if(base.status === STATUS.start) {
       // 生成startWidth
       if (type_id === 'swipe') {
         //
+        base.startWith = START_END_WITH[type_id].left;
       } else 
       
       if (type_id === 'pinch') {
@@ -450,10 +474,24 @@ function update_base_info () {
       }
     } else 
     
+    if (base.status === STATUS.move || base.status === STATUS.start) {
+      // swipe offset 更新栈顶的数据
+      if (type_id === 'swipe') {
+        offset[offset.length-1] =
+          get_swipe_offset(
+            cache.start_points,
+            get_points_from_fingers(evt_stack.move.current.touches)
+            // 唉, 开始有点模块独立的考虑, 变得更加纠结了...
+          );
+        console.log(last_arr(1, offset));
+      }
+    } else
+
     if(base.status === STATUS.end) {
       // endWith
       if (type_id === 'swipe') {
         //
+        base.endWith = START_END_WITH[type_id].left;
       } else 
       
       if (type_id === 'pinch') {
@@ -486,11 +524,11 @@ function get_current_finger(base, base_config, evt) {
 
     switch (base.status) {
     case STATUS.start:
-      return last_arr(1, evt_stack.start).touches.length;
+      return last_arr(1, evt_stack.start.increase).touches.length;
     case STATUS.end:
-      return last_arr(1, evt_stack.start).touches.length;
+      return last_arr(1, evt_stack.start.increase).touches.length;
     case STATUS.cancel:
-      return last_arr(1, evt_stack.start).touches.length;
+      return last_arr(1, evt_stack.start.increase).touches.length;
     }
 
     break;
@@ -498,9 +536,9 @@ function get_current_finger(base, base_config, evt) {
 
     switch (base.status) {
     case STATUS.start:
-      return last_arr(1, evt_stack.start).touches.length;
+      return last_arr(1, evt_stack.start.increase).touches.length;
     case STATUS.end:
-      return last_arr(1, evt_stack.start).touches.length;
+      return last_arr(1, evt_stack.start.increase).touches.length;
     }
 
     break;
@@ -513,16 +551,16 @@ function get_current_finger(base, base_config, evt) {
 function touchstart(evt) {
   var touch_num = evt.touches.length;
   var last_actived_finger_num = actived_finger_num;
-  //更新finger信息
+  // 更新finger信息
   actived_finger_num = Math.max(actived_finger_num, touch_num);
 
   if (actived_finger_num > last_actived_finger_num) {
-    evt_stack.start.push(evt);
+    evt_stack.start.increase.push(evt);
     // 使用最先手指变更的时候就好了
     // 这样允许1->2 也可以兼容1->3的情况
-    if (evt_stack.start.length > 1) {
+    if (evt_stack.start.increase.length > 1) {
       start_bus_bubble(
-        last_arr(2, evt_stack.start),
+        last_arr(2, evt_stack.start.increase),
         function () {// start patch
           schedule.set_base('tap', STATUS.cancel);
           schedule.set_base('longtap', STATUS.cancel);
@@ -539,8 +577,15 @@ function touchstart(evt) {
     schedule.set_base('tap', STATUS.start);
   }
 
-  //longtap 的16ms的定时器
+  // longtap 的16ms的定时器
   timer.start('longtap_debounce');
+
+  // swipe offset 每次点击都会压栈, finger数目变更都会用新的记录
+  offset_stack.swipe.push({x: 0, y: 0});
+  
+  evt_stack.swipe.start   = evt;
+  evt_stack.start.current = evt;
+  cache.start_points      = get_points_from_fingers(evt.touches);
 }
 
 function touchmove(evt) {
@@ -554,7 +599,7 @@ function touchmove(evt) {
 
   evt_stack.move.last = evt_stack.move.current
                       ? evt_stack.move.current
-                      : last_arr(1, evt_stack.start);
+                      : last_arr(1, evt_stack.start.increase);
 
   evt_stack.move.current = evt;
 
@@ -568,8 +613,13 @@ function touchmove(evt) {
 
 function touchend(evt) {
   if (evt.touches.length === 0) {
-    schedule.set_base('tap', STATUS.end);
+    schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);
+  } else {
+    offset_stack.swipe.push({x: 0, y: 0});
+
+    evt_stack.swipe.start = evt;
+    cache.start_points    = get_points_from_fingers(evt.touches);
   }
   schedule.set_base('longtap', STATUS.cancel);
   timer.stop('longtap_debounce');
