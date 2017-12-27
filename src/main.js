@@ -294,7 +294,8 @@ function groupstart(evt) {
   //需要判断是否需要重新生成group
   if (group_progress === 0) {
     schedule.empty_group();
-    lock_dom = -1;
+    lock_dom    = -1;
+    lock_status = false;
   }
 
   if(group_progress === 0) console.log('进度重置了');
