@@ -121,10 +121,12 @@ var timer    = new TimerController(schedule, start_bus_bubble);
 var max_group_len      = 0;
 var group_progress     = 0;
 var actived_finger_num = 0;
+var lock_dom           = -1;     // 储存锁住的dom在dom_involved的引用
 var triggerlist        = [];
 var dom_involved       = [];     // order from bubble start to end
 var group_gap_stack    = [];     // 储存groupid因为还有更长的group而已延迟触发的end事件
 var last_dom_involved  = [];
+var lock_status        = false;
 var bubble_started     = false;
 
 var cache = {
@@ -157,36 +159,73 @@ var offset_stack = {
 
 function bus(evt, usePatch) {
   var $dom = this;
+  var dom_index = $dom.__event._tmp_index;
 
   if (bubble_started === false && usePatch !== true) {
     bubble_started = true;
     bubblestart(evt);
   }
 
-  // 消化triggerlist
-  // 这里的循环可以优化
-  triggerlist.forEach(function (groupId) {
-    // triggerlist仅仅包含gourp了
-    var grouplist = $dom.__event.list[ON_FINGER];
+  if (
+    (
+      // 锁的判断
+      // 如果锁了的话, 仅仅触发lock的dom,在这个次bus中
+      lock_status === true && dom_index === lock_dom 
+    ) || (
+      // 如果之前lock过, 仅仅触发index之后的
+      lock_status === false && lock_dom !== -1 && dom_index > lock_dom
+    ) || (
+      lock_status === false && lock_dom === -1
+    )
+  ) {
+    // 消化triggerlist
+    // 这里的循环可以优化
+    triggerlist.forEach(function (groupId) {
+      // triggerlist仅仅包含gourp了
+      var grouplist = $dom.__event.list[ON_FINGER];
 
-    for (let id in grouplist) {
-      let info = grouplist[id];
-      if (info.groupId === groupId) {
-        let group = schedule.group[groupId];
-        let listener = info.config[STATUS[group.status]];
+      for (let id in grouplist) {
+        let info = grouplist[id];
+        if (info.groupId === groupId) {
+          let group = schedule.group[groupId];
+          let listener = info.config[STATUS[group.status]];
 
-        if (info.config.disable !== true) {
-          listener instanceof Function && listener.call($dom, evt);
+          if (info.config.disable !== true) {
+            listener instanceof Function && listener.call($dom,
+              // info
+              evt,
+              // lock
+              function(){
+                lock_dom = dom_index;
+                lock_status = true;
+              },
+              // unlock
+              function(){
+                lock_status = false;
+              });
 
-          // start补一帧move, TYPE_CONTINUOUS的事件
-          EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
+            // start补一帧move, TYPE_CONTINUOUS的事件
+            EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
             group.status === STATUS.start &&
             info.config.move instanceof Function &&
-            info.config.move.call($dom, evt);
+              info.config.move.call($dom,
+                // info
+                evt,
+                // lock
+                function(){
+                  lock_dom = dom_index;
+                  lock_status = true;
+                },
+                // unlock
+                function(){
+                  lock_status = false;
+                }
+              );
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   if (bubble_started === true && $dom === last_dom_involved && usePatch !== true) {
     //不过一般一个bubble的执行时间不会那么长的,不过如果使用了模版编译之类的,就有可能很长时间,
@@ -198,7 +237,7 @@ function bus(evt, usePatch) {
 
 function bubblestart(evt, patch) {
   triggerlist = [];
-
+  
   schedule.empty_updated_base();
   //更新基事件的
   if (patch instanceof Function) {
@@ -233,6 +272,8 @@ function groupstart(evt) {
   dom_involved = [];
   actived_finger_num = 0;
   timer.stop('group_gap');
+  var dom_index = 0;
+
   //推迟的group触发cancel
   group_gap_stack.forEach(function (groupId) {
     triggerlist.push(groupId);
@@ -242,6 +283,7 @@ function groupstart(evt) {
   evt.path.forEach(function ($dom) {
     if ($dom.__event !== undefined) {
       dom_involved.push($dom);
+      $dom.__event._tmp_index = dom_index++;
     }
   });
   last_dom_involved = dom_involved[dom_involved.length - 1];
@@ -250,7 +292,11 @@ function groupstart(evt) {
   schedule.empty_base();
 
   //需要判断是否需要重新生成group
-  group_progress === 0 && schedule.empty_group();
+  if (group_progress === 0) {
+    schedule.empty_group();
+    lock_dom = -1;
+  }
+
   if(group_progress === 0) console.log('进度重置了');
 
   //生成schedule
@@ -559,7 +605,7 @@ function get_current_finger(base, base_config, evt) {
 }
 
 function update_cache (evt) {
-  // swipe offset 每次点击都会压栈, finger数目变更都会用新的记录
+  // continuous offset 每次点击都会压栈, finger数目变更都会用新的记录
   evt_stack.continuous.start = evt;
   cache.start_points         = get_points_from_fingers(evt.touches);
   cache.swipe_start_offset   = get_orthocenter(cache.start_points);
@@ -570,6 +616,11 @@ function update_cache (evt) {
     return get_rotate(point, cache.swipe_start_offset);
   }));
   offset_stack.swipe.push({x: 0, y: 0});
+
+  if (evt.touches.length > 1 ) {
+    offset_stack.pinch.push(0);
+    offset_stack.rotate.push(0);
+  }
 }
 
 // update base status
@@ -610,7 +661,6 @@ function touchstart(evt) {
 }
 
 function touchmove(evt) {
-  // debugger;
   schedule.set_base('tap', STATUS.cancel);
   schedule.set_base('longtap', STATUS.cancel);
   schedule.set_base('swipe', STATUS.move);
@@ -632,7 +682,7 @@ function touchmove(evt) {
   }
 }
 
-function touchend(evt) {
+function touchend(evt) {  
   if (evt.touches.length === 0) {
     schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);

@@ -679,10 +679,12 @@ var timer = new _timerController2.default(schedule, start_bus_bubble);
 var max_group_len = 0;
 var group_progress = 0;
 var actived_finger_num = 0;
+var lock_dom = -1; // 储存锁住的dom在dom_involved的引用
 var triggerlist = [];
 var dom_involved = []; // order from bubble start to end
 var group_gap_stack = []; // 储存groupid因为还有更长的group而已延迟触发的end事件
 var last_dom_involved = [];
+var lock_status = false;
 var bubble_started = false;
 
 var cache = {
@@ -715,33 +717,63 @@ var offset_stack = {
 
 function bus(evt, usePatch) {
   var $dom = this;
+  var dom_index = $dom.__event._tmp_index;
 
   if (bubble_started === false && usePatch !== true) {
     bubble_started = true;
     bubblestart(evt);
   }
 
-  // 消化triggerlist
-  // 这里的循环可以优化
-  triggerlist.forEach(function (groupId) {
-    // triggerlist仅仅包含gourp了
-    var grouplist = $dom.__event.list[_define.ON_FINGER];
+  if (
+  // 锁的判断
+  // 如果锁了的话, 仅仅触发lock的dom,在这个次bus中
+  lock_status === true && dom_index === lock_dom ||
+  // 如果之前lock过, 仅仅触发index之后的
+  lock_status === false && lock_dom !== -1 && dom_index > lock_dom || lock_status === false && lock_dom === -1) {
+    // 消化triggerlist
+    // 这里的循环可以优化
+    triggerlist.forEach(function (groupId) {
+      // triggerlist仅仅包含gourp了
+      var grouplist = $dom.__event.list[_define.ON_FINGER];
 
-    for (var id in grouplist) {
-      var info = grouplist[id];
-      if (info.groupId === groupId) {
-        var group = schedule.group[groupId];
-        var listener = info.config[_define.STATUS[group.status]];
+      for (var id in grouplist) {
+        var info = grouplist[id];
+        if (info.groupId === groupId) {
+          var group = schedule.group[groupId];
+          var listener = info.config[_define.STATUS[group.status]];
 
-        if (info.config.disable !== true) {
-          listener instanceof Function && listener.call($dom, evt);
+          if (info.config.disable !== true) {
+            listener instanceof Function && listener.call($dom,
+            // info
+            evt,
+            // lock
+            function () {
+              lock_dom = dom_index;
+              lock_status = true;
+            },
+            // unlock
+            function () {
+              lock_status = false;
+            });
 
-          // start补一帧move, TYPE_CONTINUOUS的事件
-          _define.EVENT[group.group[group_progress].type].type === _define.TYPE_CONTINUOUS && group.status === _define.STATUS.start && info.config.move instanceof Function && info.config.move.call($dom, evt);
+            // start补一帧move, TYPE_CONTINUOUS的事件
+            _define.EVENT[group.group[group_progress].type].type === _define.TYPE_CONTINUOUS && group.status === _define.STATUS.start && info.config.move instanceof Function && info.config.move.call($dom,
+            // info
+            evt,
+            // lock
+            function () {
+              lock_dom = dom_index;
+              lock_status = true;
+            },
+            // unlock
+            function () {
+              lock_status = false;
+            });
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   if (bubble_started === true && $dom === last_dom_involved && usePatch !== true) {
     //不过一般一个bubble的执行时间不会那么长的,不过如果使用了模版编译之类的,就有可能很长时间,
@@ -788,6 +820,8 @@ function groupstart(evt) {
   dom_involved = [];
   actived_finger_num = 0;
   timer.stop('group_gap');
+  var dom_index = 0;
+
   //推迟的group触发cancel
   group_gap_stack.forEach(function (groupId) {
     triggerlist.push(groupId);
@@ -797,6 +831,7 @@ function groupstart(evt) {
   evt.path.forEach(function ($dom) {
     if ($dom.__event !== undefined) {
       dom_involved.push($dom);
+      $dom.__event._tmp_index = dom_index++;
     }
   });
   last_dom_involved = dom_involved[dom_involved.length - 1];
@@ -805,7 +840,11 @@ function groupstart(evt) {
   schedule.empty_base();
 
   //需要判断是否需要重新生成group
-  group_progress === 0 && schedule.empty_group();
+  if (group_progress === 0) {
+    schedule.empty_group();
+    lock_dom = -1;
+  }
+
   if (group_progress === 0) console.log('进度重置了');
 
   //生成schedule
@@ -1051,7 +1090,7 @@ function get_current_finger(base, base_config, evt) {
 }
 
 function update_cache(evt) {
-  // swipe offset 每次点击都会压栈, finger数目变更都会用新的记录
+  // continuous offset 每次点击都会压栈, finger数目变更都会用新的记录
   evt_stack.continuous.start = evt;
   cache.start_points = (0, _tool.get_points_from_fingers)(evt.touches);
   cache.swipe_start_offset = (0, _tool.get_orthocenter)(cache.start_points);
@@ -1062,6 +1101,11 @@ function update_cache(evt) {
     return (0, _tool.get_rotate)(point, cache.swipe_start_offset);
   }));
   offset_stack.swipe.push({ x: 0, y: 0 });
+
+  if (evt.touches.length > 1) {
+    offset_stack.pinch.push(0);
+    offset_stack.rotate.push(0);
+  }
 }
 
 // update base status
@@ -1100,7 +1144,6 @@ function touchstart(evt) {
 }
 
 function touchmove(evt) {
-  // debugger;
   schedule.set_base('tap', _define.STATUS.cancel);
   schedule.set_base('longtap', _define.STATUS.cancel);
   schedule.set_base('swipe', _define.STATUS.move);
@@ -1158,6 +1201,9 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 document.addEventListener("DOMContentLoaded", function () {
   var $box = document.querySelector('#box');
+  var $foo = document.querySelector('#foo');
+  var $bar = document.querySelector('#bar');
+  var count = 0;
 
   var swipeCtrl = (0, _index2.default)($box, {
     type: 'swipe',
@@ -1235,6 +1281,79 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     cancel: function cancel() {
       console.log('longtap cancel');
+    }
+  });
+
+  (0, _index2.default)($foo, {
+    type: 'swipe',
+    when: {
+      type: 'longtap',
+      status: ['cancel', 'init'],
+      longtapThreshold: 1000 /*ms*/
+    },
+
+    endWith: ['right', 'vertical', 'horizontal'],
+    startWith: ['left'],
+
+    end: function end() {
+      console.log('foo swipe end');
+    },
+    start: function start() {
+      console.log('foo swipe start');
+    },
+    cancel: function cancel() {
+      console.log('foo swipe cancel');
+    },
+    move: function move(info, lock, unlock) {
+      console.log('foo swipe move');
+      if (count === 51) {
+        lock();
+        console.log('lock to foo');
+      }
+
+      if (count === 100) {
+        unlock();
+        console.log('unlock from foo');
+      }
+
+      count++;
+    }
+  });
+
+  (0, _index2.default)($bar, {
+    type: 'swipe',
+    when: {
+      type: 'longtap',
+      status: ['cancel', 'init'],
+      longtapThreshold: 1000 /*ms*/
+    },
+
+    finger: 1,
+    endWith: ['right', 'vertical', 'horizontal'],
+    startWith: ['left'],
+
+    end: function end() {
+      console.log('bar swipe end');
+    },
+    start: function start() {
+      console.log('bar swipe start');count = 0;
+    },
+    cancel: function cancel() {
+      console.log('bar swipe cancel');
+    },
+    move: function move(info, lock, unlock) {
+      console.log('bar swipe move');
+      if (count === 0) {
+        lock();
+        console.log('lock to bar');
+      }
+
+      if (count === 50) {
+        unlock();
+        console.log('unlock from bar');
+      }
+
+      count++;
     }
   });
 });
@@ -1437,8 +1556,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 
 var _define = __webpack_require__(1);
-
-var _tool = __webpack_require__(0);
 
 function ScheduleController() {
   this.base = {};

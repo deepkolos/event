@@ -3,7 +3,6 @@ import {
   STATUS,
   TYPE_CONTINUOUS
 } from './define';
-import { get_type_id } from './tool';
 
 function ScheduleController(){
   this.base         = {};
