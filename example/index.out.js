@@ -386,8 +386,16 @@ function get_avg(destances) {
   return total / destances.length;
 }
 
-function get_swipe_offset(start_points, end_points) {
+function get_swipe_offset(start_points, end_points, cache_start) {
   var end_orthocenter = get_orthocenter(end_points);
+
+  if (cache_start) {
+    return {
+      x: end_orthocenter.x - cache_start.x,
+      y: end_orthocenter.y - cache_start.y
+    };
+  }
+
   var start_orthocenter = get_orthocenter(start_points);
 
   return {
@@ -396,8 +404,15 @@ function get_swipe_offset(start_points, end_points) {
   };
 }
 
-function get_pinch_offset(start_points, end_points) {
+function get_pinch_offset(start_points, end_points, cache_start) {
   var end_orthocenter = get_orthocenter(end_points);
+
+  if (cache_start) {
+    return 0 + get_avg(end_points.map(function (point) {
+      return get_destance(point, end_orthocenter);
+    })) - cache_start;
+  }
+
   var start_orthocenter = get_orthocenter(start_points);
 
   return 0 + get_avg(end_points.map(function (point) {
@@ -407,8 +422,15 @@ function get_pinch_offset(start_points, end_points) {
   }));
 }
 
-function get_rotate_offset(start_points, end_points) {
+function get_rotate_offset(start_points, end_points, cache_start) {
   var end_orthocenter = get_orthocenter(end_points);
+
+  if (cache_start) {
+    return 0 + get_avg(end_points.map(function (point) {
+      return get_rotate(point, end_orthocenter);
+    })) - cache_start;
+  }
+
   var start_orthocenter = get_orthocenter(start_points);
 
   return 0 + get_avg(end_points.map(function (point) {
@@ -664,7 +686,10 @@ var last_dom_involved = [];
 var bubble_started = false;
 
 var cache = {
-  start_points: null
+  start_points: null,
+  swipe_start_offset: null,
+  pinch_start_offset: null,
+  rotate_start_offset: null
 };
 
 var evt_stack = {
@@ -975,7 +1000,7 @@ function update_base_info() {
     } else if (base.status === _define.STATUS.move || base.status === _define.STATUS.start) {
       // continuous offset 更新栈顶的数据
       if (type_id === 'swipe' || type_id === 'pinch' || type_id === 'rotate') {
-        offset[offset.length - 1] = __webpack_require__(0)['get_' + type_id + '_offset'](cache.start_points, (0, _tool.get_points_from_fingers)(evt_stack.move.current.touches));
+        offset[offset.length - 1] = __webpack_require__(0)['get_' + type_id + '_offset'](cache.start_points, (0, _tool.get_points_from_fingers)(evt_stack.move.current.touches), cache[type_id + '_start_offset']);
       }
     } else if (base.status === _define.STATUS.end) {
       // endWith
@@ -1025,6 +1050,20 @@ function get_current_finger(base, base_config, evt) {
   return evt.touches.length;
 }
 
+function update_cache(evt) {
+  // swipe offset 每次点击都会压栈, finger数目变更都会用新的记录
+  evt_stack.continuous.start = evt;
+  cache.start_points = (0, _tool.get_points_from_fingers)(evt.touches);
+  cache.swipe_start_offset = (0, _tool.get_orthocenter)(cache.start_points);
+  cache.pinch_start_offset = (0, _tool.get_avg)(cache.start_points.map(function (point) {
+    return (0, _tool.get_destance)(point, cache.swipe_start_offset);
+  }));
+  cache.rotate_start_offset = (0, _tool.get_avg)(cache.start_points.map(function (point) {
+    return (0, _tool.get_rotate)(point, cache.swipe_start_offset);
+  }));
+  offset_stack.swipe.push({ x: 0, y: 0 });
+}
+
 // update base status
 function touchstart(evt) {
   var touch_num = evt.touches.length;
@@ -1056,12 +1095,8 @@ function touchstart(evt) {
   // longtap 的16ms的定时器
   timer.start('longtap_debounce');
 
-  // swipe offset 每次点击都会压栈, finger数目变更都会用新的记录
-  offset_stack.swipe.push({ x: 0, y: 0 });
-
-  evt_stack.continuous.start = evt;
+  update_cache(evt);
   evt_stack.start.current = evt;
-  cache.start_points = (0, _tool.get_points_from_fingers)(evt.touches);
 }
 
 function touchmove(evt) {
@@ -1090,10 +1125,7 @@ function touchend(evt) {
     schedule.set_base('tap', _define.STATUS.end);
     schedule.set_base('swipe', _define.STATUS.end);
   } else {
-    offset_stack.swipe.push({ x: 0, y: 0 });
-
-    evt_stack.continuous.start = evt;
-    cache.start_points = (0, _tool.get_points_from_fingers)(evt.touches);
+    update_cache(evt);
   }
   schedule.set_base('longtap', _define.STATUS.cancel);
   timer.stop('longtap_debounce');
