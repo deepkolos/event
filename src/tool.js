@@ -220,16 +220,6 @@ export function clean_arr (arr) {
   }
 }
 
-export function get_swipe_offset (start_points, end_points) {
-  var end_orthocenter   = get_orthocenter(end_points);
-  var start_orthocenter = get_orthocenter(start_points);
-
-  return {
-    x: end_orthocenter.x - start_orthocenter.x,
-    y: end_orthocenter.y - start_orthocenter.y,
-  };
-}
-
 export function get_orthocenter (points) {
   var i    = 0;
   var x    = 0;
@@ -237,19 +227,27 @@ export function get_orthocenter (points) {
   var tmp  = 0;
   var area = 0;
   var len  = points.length - 1;
+
+  // 0根手指
+  if (len === -1) {
+    console.log('没有手指~');
+    return {x: 0, y: 0};
+  } else
   
+  // 1根手指
   if (len === 0) {
     return points[0];
   } else
 
-  if (len === -1) {
-    console.log('没有手指~');
-    return {x: 0, y: 0};
+  // 2根手指
+  if (len === 1) {
+    return {
+      x: (points[0].x + points[1].x) / 2,
+      y: (points[0].y + points[1].y) / 2
+    };
   }
 
-  debugger;
-
-
+  // 多根手指
   for (; i < len; i++) {
     tmp   = points[i].x * points[i+1].y - points[i].y * points[i+1].x;
     area += tmp;
@@ -279,6 +277,15 @@ export function get_destance (point_a, point_b) {
   );
 }
 
+export function get_rotate (point_a, point_b) {
+  var vector = {
+    x: point_a.x - point_b.x,
+    y: point_a.y - point_b.y
+  };
+
+  return Math.atan(vector.y / vector.x);
+}
+
 export function get_points_from_fingers (fingers) {
   var i      = 0;
   var result = [];
@@ -292,4 +299,57 @@ export function get_points_from_fingers (fingers) {
   }
 
   return result;
+}
+
+export function get_avg (destances) {
+  var total  = 0;
+  var len    = destances.length;
+
+  if (len === 0 ) {
+    return 0;
+  }
+
+  destances.forEach(function(destance){
+    total += destance;
+  });
+
+  return total / destances.length;
+}
+
+export function get_swipe_offset (start_points, end_points) {
+  var end_orthocenter   = get_orthocenter(end_points);
+  var start_orthocenter = get_orthocenter(start_points);
+
+  return {
+    x: end_orthocenter.x - start_orthocenter.x,
+    y: end_orthocenter.y - start_orthocenter.y,
+  };
+}
+
+export function get_pinch_offset (start_points, end_points) {
+  var end_orthocenter   = get_orthocenter(end_points);
+  var start_orthocenter = get_orthocenter(start_points);
+
+  return 0 +
+    get_avg(end_points.map(function(point){
+      return get_destance(point, end_orthocenter);
+    }))
+    -
+    get_avg(start_points.map(function(point){
+      return get_destance(point, start_orthocenter);
+    }));
+}
+
+export function get_rotate_offset (start_points, end_points) {
+  var end_orthocenter   = get_orthocenter(end_points);
+  var start_orthocenter = get_orthocenter(start_points);
+
+  return 0 +
+    get_avg(end_points.map(function(point){
+      return get_rotate(point, end_orthocenter);
+    }))
+    -
+    get_avg(start_points.map(function(point){
+      return get_rotate(point, start_orthocenter);
+    }));
 }

@@ -6,9 +6,9 @@ document.addEventListener("DOMContentLoaded", function() {
   var swipeCtrl = addEvent($box, {
     type:      'swipe',
 
-    start:     function(){console.log('swipe start');},
-    move:      function(){console.log('swipe move');},
     end:       function(){console.log('swipe end');},
+    move:      function(){console.log('swipe move');},
+    start:     function(){console.log('swipe start');},
     cancel:    function(){console.log('swipe cancel');},
   });
 
@@ -25,9 +25,9 @@ document.addEventListener("DOMContentLoaded", function() {
     endWith:   ['right', 'vertical', 'horizontal'],
     startWith: ['left'],
 
-    start:     function(){console.log('swipe start');},
-    move:      function(){console.log('swipe move');},
     end:       function(){console.log('swipe end');},
+    move:      function(){console.log('swipe move');},
+    start:     function(){console.log('swipe start');},
     cancel:    function(){console.log('swipe cancel');},
   });
 
@@ -35,18 +35,18 @@ document.addEventListener("DOMContentLoaded", function() {
     type:      'tap',
     repeat:    3,
 
-    start:     function(){console.log('tap start');},
-    move:      function(){console.log('tap move');},
     end:       function(){console.log('tap end');},
+    move:      function(){console.log('tap move');},
+    start:     function(){console.log('tap start');},
     cancel:    function(){console.log('tap cancel');},
   });
 
   addEvent($box, {
     type:      'longtap',
 
-    start:     function(){console.log('longtap start');},
-    move:      function(){console.log('longtap move');},
     end:       function(){console.log('longtap end');},
+    move:      function(){console.log('longtap move');},
+    start:     function(){console.log('longtap start');},
     cancel:    function(){console.log('longtap cancel');},
   });
 

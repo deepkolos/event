@@ -84,10 +84,14 @@ exports.config_equal = config_equal;
 exports.init_start_end_with = init_start_end_with;
 exports.init_when = init_when;
 exports.clean_arr = clean_arr;
-exports.get_swipe_offset = get_swipe_offset;
 exports.get_orthocenter = get_orthocenter;
 exports.get_destance = get_destance;
+exports.get_rotate = get_rotate;
 exports.get_points_from_fingers = get_points_from_fingers;
+exports.get_avg = get_avg;
+exports.get_swipe_offset = get_swipe_offset;
+exports.get_pinch_offset = get_pinch_offset;
+exports.get_rotate_offset = get_rotate_offset;
 
 var _define = __webpack_require__(1);
 
@@ -289,16 +293,6 @@ function clean_arr(arr) {
   }
 }
 
-function get_swipe_offset(start_points, end_points) {
-  var end_orthocenter = get_orthocenter(end_points);
-  var start_orthocenter = get_orthocenter(start_points);
-
-  return {
-    x: end_orthocenter.x - start_orthocenter.x,
-    y: end_orthocenter.y - start_orthocenter.y
-  };
-}
-
 function get_orthocenter(points) {
   var i = 0;
   var x = 0;
@@ -307,15 +301,26 @@ function get_orthocenter(points) {
   var area = 0;
   var len = points.length - 1;
 
-  if (len === 0) {
-    return points[0];
-  } else if (len === -1) {
+  // 0根手指
+  if (len === -1) {
     console.log('没有手指~');
     return { x: 0, y: 0 };
-  }
+  } else
 
-  debugger;
+    // 1根手指
+    if (len === 0) {
+      return points[0];
+    } else
 
+      // 2根手指
+      if (len === 1) {
+        return {
+          x: (points[0].x + points[1].x) / 2,
+          y: (points[0].y + points[1].y) / 2
+        };
+      }
+
+  // 多根手指
   for (; i < len; i++) {
     tmp = points[i].x * points[i + 1].y - points[i].y * points[i + 1].x;
     area += tmp;
@@ -342,6 +347,15 @@ function get_destance(point_a, point_b) {
   return Math.sqrt(Math.pow(Math.abs(point_a.x - point_b.x), 2) + Math.pow(Math.abs(point_a.y - point_b.y), 2));
 }
 
+function get_rotate(point_a, point_b) {
+  var vector = {
+    x: point_a.x - point_b.x,
+    y: point_a.y - point_b.y
+  };
+
+  return Math.atan(vector.y / vector.x);
+}
+
 function get_points_from_fingers(fingers) {
   var i = 0;
   var result = [];
@@ -355,6 +369,53 @@ function get_points_from_fingers(fingers) {
   }
 
   return result;
+}
+
+function get_avg(destances) {
+  var total = 0;
+  var len = destances.length;
+
+  if (len === 0) {
+    return 0;
+  }
+
+  destances.forEach(function (destance) {
+    total += destance;
+  });
+
+  return total / destances.length;
+}
+
+function get_swipe_offset(start_points, end_points) {
+  var end_orthocenter = get_orthocenter(end_points);
+  var start_orthocenter = get_orthocenter(start_points);
+
+  return {
+    x: end_orthocenter.x - start_orthocenter.x,
+    y: end_orthocenter.y - start_orthocenter.y
+  };
+}
+
+function get_pinch_offset(start_points, end_points) {
+  var end_orthocenter = get_orthocenter(end_points);
+  var start_orthocenter = get_orthocenter(start_points);
+
+  return 0 + get_avg(end_points.map(function (point) {
+    return get_destance(point, end_orthocenter);
+  })) - get_avg(start_points.map(function (point) {
+    return get_destance(point, start_orthocenter);
+  }));
+}
+
+function get_rotate_offset(start_points, end_points) {
+  var end_orthocenter = get_orthocenter(end_points);
+  var start_orthocenter = get_orthocenter(start_points);
+
+  return 0 + get_avg(end_points.map(function (point) {
+    return get_rotate(point, end_orthocenter);
+  })) - get_avg(start_points.map(function (point) {
+    return get_rotate(point, start_orthocenter);
+  }));
 }
 
 /***/ }),
@@ -615,7 +676,7 @@ var evt_stack = {
     last: null,
     current: null
   },
-  swipe: {
+  continuous: {
     start: null
   },
   end: []
@@ -765,9 +826,9 @@ function groupend(evt) {
     evt_stack.end = [];
 
     delete evt_stack.move.last;
-    delete evt_stack.swipe.start;
     delete evt_stack.move.current;
     delete evt_stack.start.current;
+    delete evt_stack.continuous.start;
   }
 }
 
@@ -898,8 +959,8 @@ function update_triggerlist(evt) {
 
 function update_base_info() {
   schedule.updated_base.forEach(function (type_id) {
-    var base = schedule.base[type_id];
     var offset = offset_stack[type_id];
+    var base = schedule.base[type_id];
 
     if (base.status === _define.STATUS.start) {
       // 生成startWidth
@@ -912,12 +973,9 @@ function update_base_info() {
         //
       }
     } else if (base.status === _define.STATUS.move || base.status === _define.STATUS.start) {
-      // swipe offset 更新栈顶的数据
-      if (type_id === 'swipe') {
-        offset[offset.length - 1] = (0, _tool.get_swipe_offset)(cache.start_points, (0, _tool.get_points_from_fingers)(evt_stack.move.current.touches)
-        // 唉, 开始有点模块独立的考虑, 变得更加纠结了...
-        );
-        console.log((0, _tool.last_arr)(1, offset));
+      // continuous offset 更新栈顶的数据
+      if (type_id === 'swipe' || type_id === 'pinch' || type_id === 'rotate') {
+        offset[offset.length - 1] = __webpack_require__(0)['get_' + type_id + '_offset'](cache.start_points, (0, _tool.get_points_from_fingers)(evt_stack.move.current.touches));
       }
     } else if (base.status === _define.STATUS.end) {
       // endWith
@@ -985,8 +1043,8 @@ function touchstart(evt) {
         schedule.set_base('longtap', _define.STATUS.cancel);
       }, function () {
         // end patch
-        schedule.set_base('longtap', _define.STATUS.init);
         schedule.set_base('tap', _define.STATUS.init);
+        schedule.set_base('longtap', _define.STATUS.init);
       });
     }
 
@@ -1001,7 +1059,7 @@ function touchstart(evt) {
   // swipe offset 每次点击都会压栈, finger数目变更都会用新的记录
   offset_stack.swipe.push({ x: 0, y: 0 });
 
-  evt_stack.swipe.start = evt;
+  evt_stack.continuous.start = evt;
   evt_stack.start.current = evt;
   cache.start_points = (0, _tool.get_points_from_fingers)(evt.touches);
 }
@@ -1034,7 +1092,7 @@ function touchend(evt) {
   } else {
     offset_stack.swipe.push({ x: 0, y: 0 });
 
-    evt_stack.swipe.start = evt;
+    evt_stack.continuous.start = evt;
     cache.start_points = (0, _tool.get_points_from_fingers)(evt.touches);
   }
   schedule.set_base('longtap', _define.STATUS.cancel);
@@ -1072,14 +1130,14 @@ document.addEventListener("DOMContentLoaded", function () {
   var swipeCtrl = (0, _index2.default)($box, {
     type: 'swipe',
 
-    start: function start() {
-      console.log('swipe start');
+    end: function end() {
+      console.log('swipe end');
     },
     move: function move() {
       console.log('swipe move');
     },
-    end: function end() {
-      console.log('swipe end');
+    start: function start() {
+      console.log('swipe start');
     },
     cancel: function cancel() {
       console.log('swipe cancel');
@@ -1099,14 +1157,14 @@ document.addEventListener("DOMContentLoaded", function () {
     endWith: ['right', 'vertical', 'horizontal'],
     startWith: ['left'],
 
-    start: function start() {
-      console.log('swipe start');
+    end: function end() {
+      console.log('swipe end');
     },
     move: function move() {
       console.log('swipe move');
     },
-    end: function end() {
-      console.log('swipe end');
+    start: function start() {
+      console.log('swipe start');
     },
     cancel: function cancel() {
       console.log('swipe cancel');
@@ -1117,14 +1175,14 @@ document.addEventListener("DOMContentLoaded", function () {
     type: 'tap',
     repeat: 3,
 
-    start: function start() {
-      console.log('tap start');
+    end: function end() {
+      console.log('tap end');
     },
     move: function move() {
       console.log('tap move');
     },
-    end: function end() {
-      console.log('tap end');
+    start: function start() {
+      console.log('tap start');
     },
     cancel: function cancel() {
       console.log('tap cancel');
@@ -1134,14 +1192,14 @@ document.addEventListener("DOMContentLoaded", function () {
   (0, _index2.default)($box, {
     type: 'longtap',
 
-    start: function start() {
-      console.log('longtap start');
+    end: function end() {
+      console.log('longtap end');
     },
     move: function move() {
       console.log('longtap move');
     },
-    end: function end() {
-      console.log('longtap end');
+    start: function start() {
+      console.log('longtap start');
     },
     cancel: function cancel() {
       console.log('longtap cancel');

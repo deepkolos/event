@@ -3,6 +3,7 @@ import TimerController    from './timer-controller';
 import EventController    from './event-controller';
 import ScheduleController from './schedule-controller';
 import {
+  get_avg,
   last_arr,
   init_when,
   clean_arr,
@@ -11,7 +12,9 @@ import {
   config_equal,
   make_flat_group,
   get_swipe_offset,
-  get_points_from_fingers
+  get_points_from_fingers,
+  get_destance,
+  get_pinch_offset,
 } from './tool';
 import {
   EVENT,
@@ -24,10 +27,10 @@ import {
   TYPE_MONENT,/* eslint no-unused-vars: 0 */
   TYPE_UNKNOW,/* eslint no-unused-vars: 0 */
   TYPE_CONTINUOUS,
-
+  
+  START_END_WITH,
   DEFAULT_TAP_FINGER,
-  DEFAULT_LONGTAP_THRESHOLD,
-  START_END_WITH
+  DEFAULT_LONGTAP_THRESHOLD
 } from './define';
 
 // 对外接口
@@ -135,7 +138,7 @@ var evt_stack = {
     last:     null,
     current:  null
   },
-  swipe: {
+  continuous: {
     start:    null
   },
   end: []
@@ -288,9 +291,9 @@ function groupend(evt) {
     evt_stack.end = [];
 
     delete evt_stack.move.last;
-    delete evt_stack.swipe.start;
     delete evt_stack.move.current;
     delete evt_stack.start.current;
+    delete evt_stack.continuous.start;
   }
 }
 
@@ -455,8 +458,8 @@ function update_triggerlist(evt) {
 
 function update_base_info () {
   schedule.updated_base.forEach(function(type_id){
-    var base = schedule.base[type_id];
     var offset = offset_stack[type_id];
+    var base   = schedule.base[type_id];
 
     if(base.status === STATUS.start) {
       // 生成startWidth
@@ -475,15 +478,17 @@ function update_base_info () {
     } else 
     
     if (base.status === STATUS.move || base.status === STATUS.start) {
-      // swipe offset 更新栈顶的数据
-      if (type_id === 'swipe') {
-        offset[offset.length-1] =
-          get_swipe_offset(
+      // continuous offset 更新栈顶的数据
+      if (
+        type_id === 'swipe' ||
+        type_id === 'pinch' ||
+        type_id === 'rotate'
+      ) {
+        offset[offset.length-1] = 
+          require('./tool')[`get_${type_id}_offset`](
             cache.start_points,
             get_points_from_fingers(evt_stack.move.current.touches)
-            // 唉, 开始有点模块独立的考虑, 变得更加纠结了...
           );
-        console.log(last_arr(1, offset));
       }
     } else
 
@@ -549,7 +554,7 @@ function get_current_finger(base, base_config, evt) {
 
 // update base status
 function touchstart(evt) {
-  var touch_num = evt.touches.length;
+  var touch_num               = evt.touches.length;
   var last_actived_finger_num = actived_finger_num;
   // 更新finger信息
   actived_finger_num = Math.max(actived_finger_num, touch_num);
@@ -562,12 +567,12 @@ function touchstart(evt) {
       start_bus_bubble(
         last_arr(2, evt_stack.start.increase),
         function () {// start patch
-          schedule.set_base('tap', STATUS.cancel);
+          schedule.set_base('tap',     STATUS.cancel);
           schedule.set_base('longtap', STATUS.cancel);
         },
         function () {// end patch
+          schedule.set_base('tap',     STATUS.init);
           schedule.set_base('longtap', STATUS.init);
-          schedule.set_base('tap', STATUS.init);
         }
       );
     }
@@ -583,9 +588,9 @@ function touchstart(evt) {
   // swipe offset 每次点击都会压栈, finger数目变更都会用新的记录
   offset_stack.swipe.push({x: 0, y: 0});
   
-  evt_stack.swipe.start   = evt;
-  evt_stack.start.current = evt;
-  cache.start_points      = get_points_from_fingers(evt.touches);
+  evt_stack.continuous.start = evt;
+  evt_stack.start.current    = evt;
+  cache.start_points         = get_points_from_fingers(evt.touches);
 }
 
 function touchmove(evt) {
@@ -618,8 +623,8 @@ function touchend(evt) {
   } else {
     offset_stack.swipe.push({x: 0, y: 0});
 
-    evt_stack.swipe.start = evt;
-    cache.start_points    = get_points_from_fingers(evt.touches);
+    evt_stack.continuous.start = evt;
+    cache.start_points         = get_points_from_fingers(evt.touches);
   }
   schedule.set_base('longtap', STATUS.cancel);
   timer.stop('longtap_debounce');
