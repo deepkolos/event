@@ -12,7 +12,7 @@ function ScheduleController(){
 
 ScheduleController.prototype.set_base = function(type, set_status){
   var status;
-  if(this.base[type] !== undefined){
+  if (this.base[type] !== undefined) {
     status = this.base[type].status;
 
     // 设置init
@@ -45,7 +45,9 @@ ScheduleController.prototype.set_base = function(type, set_status){
       this.base[type].status = set_status;
       this.updated_base.push(type);
     }
-  } else if(type === 'longtap'){
+  } else 
+  
+  if (type === 'longtap') {
     //longtap仅仅允许做start/cancel的操作了, 不会包含longtap_debounce, 因为不是基事件来的
 
     for (let id in this.base) {
@@ -63,6 +65,13 @@ ScheduleController.prototype.set_base = function(type, set_status){
         this.updated_base.push(id);
       }
     }
+  } else
+
+  if (EVENT[type] === TYPE_CONTINUOUS) {
+    // 处理swipe, pinch, rotate, 这类连续事件, 一般是不会被打断的, 打断原因会是startWith/endWith限制
+
+    
+
   }
 };
 

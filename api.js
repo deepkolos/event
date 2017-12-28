@@ -34,9 +34,9 @@ var controller = addEvent(document.createElement('div'), {
   ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发, 这层灵活性先不提供了
 
   //triggerRegister
-  start: _start,
-  move: _move,// 连续事件会触发这个
-  end: _end,//离散事件仅仅支持end和cancel,但是语义不好
+  start:  _start,
+  move:   _move,// 连续事件会触发这个
+  end:    _end,//离散事件仅仅支持end和cancel,但是语义不好
   cancel: _cancal
 });
 
@@ -91,9 +91,9 @@ var groupDemo = addEvent(document.createElement('div'), {
     }
   ],
 
-  start: _start,
-  move: _move,
-  end: _end,
+  start:  _start,
+  move:   _move,
+  end:    _end,
   cancel: _cancal
 });
 
@@ -110,4 +110,4 @@ groupDemo.removeEvent();
 
 
 //如果遇到[1] [1,2] 基事件描述1相同, 仅仅阻塞的是end事件
-//就是[1]的start,move事件依然会触发的, 至于是触发end, 还是cancel就需要看
+//就是[1]的start,move事件依然会触发的, 至于是触发end, 还是cancel就需要看group_gap之内,下一个group有没有start

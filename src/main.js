@@ -7,16 +7,17 @@ import {
   last_arr,
   init_when,
   clean_arr,
+  get_rotate,
+  parse_alias,
   get_type_id,
   get_group_Id,
+  get_destance,
   config_equal,
+  get_orthocenter,
   make_flat_group,
+  get_pinch_offset,
   get_swipe_offset,
   get_points_from_fingers,
-  get_destance,
-  get_pinch_offset,
-  get_orthocenter,
-  get_rotate,
 } from './tool';
 import {
   EVENT,
@@ -38,6 +39,9 @@ import {
 // 对外接口
 function addEvent($dom, config = {}) {
   var type = config.type;
+
+  // 处理alias
+  parse_alias(config);
 
   if (type === undefined || EVENT[type] === undefined)
     throw '请配置事件的type,或者检查拼写正确';

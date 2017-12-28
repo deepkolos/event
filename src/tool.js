@@ -7,6 +7,7 @@ import {
 } from './define';
 
 export function make_flat_base(config) {
+  parse_alias(config);
   var repeat = config.repeat || 1;
   var result = [];
 
@@ -181,6 +182,8 @@ export function init_start_end_with (config){
 
 export function init_when (config){
   if (config.when instanceof Object) {
+    parse_alias(config.when);
+
     var evt_when_status = config.when.status;
 
     config.when.type_id = get_type_id(config.when);
@@ -380,4 +383,17 @@ export function get_rotate_offset (start_points, end_points, cache_start) {
     get_avg(start_points.map(function(point){
       return get_rotate(point, start_orthocenter);
     }));
+}
+
+export function parse_alias (config) {
+  var type = config.type;
+
+  if (type === 'doubletap') {
+    config.repeat = 2;
+    config.type   = 'tap';
+  } else
+
+  if (type === '') {
+    //
+  }
 }
