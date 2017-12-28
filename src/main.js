@@ -18,6 +18,10 @@ import {
   get_pinch_offset,
   get_swipe_offset,
   get_points_from_fingers,
+  get_swipe_direction,
+  get_pinch_direction,
+  get_rotate_direction,
+  get_rotate_offset,
 } from './tool';
 import {
   EVENT,
@@ -509,19 +513,38 @@ function update_base_info () {
     var offset = offset_stack[type_id];
     var base   = schedule.base[type_id];
 
+    // 感觉可以整合一下, 不过先要验证逻辑是否正确
+
     if(base.status === STATUS.start) {
       // 生成startWidth
-      if (type_id === 'swipe') {
-        //
-        base.startWith = START_END_WITH[type_id].left;
+      if (type_id.indexOf('swipe') === 0) {
+        base.startWith = get_swipe_direction(
+          get_swipe_offset(
+            cache.start_points,
+            get_points_from_fingers(evt_stack.move.current.touches),
+            cache[`swipe_start_offset`]
+          )
+        );
       } else 
       
-      if (type_id === 'pinch') {
-        //
+      if (type_id.indexOf('pinch') === 0) {
+        base.startWith = get_pinch_direction(
+          get_pinch_offset(
+            cache.start_points,
+            get_points_from_fingers(evt_stack.move.current.touches),
+            cache[`pinch_start_offset`]
+          )
+        );
       } else
 
-      if (type_id === 'rotate') {
-        //
+      if (type_id.indexOf('rotate') === 0) {
+        base.startWith = get_rotate_direction(
+          get_rotate_offset(
+            cache.start_points,
+            get_points_from_fingers(evt_stack.move.current.touches),
+            cache[`rotate_start_offset`]
+          )
+        );
       }
     } else 
     
@@ -543,17 +566,49 @@ function update_base_info () {
 
     if(base.status === STATUS.end) {
       // endWith
-      if (type_id === 'swipe') {
-        //
-        base.endWith = START_END_WITH[type_id].left;
+      if (type_id.indexOf('swipe') === 0) {
+        if(type_id === 'swipe') {
+          base.endWith = get_swipe_direction(
+            offset_stack.swipe.reduce(function(sum, current){
+              return {
+                x: sum.x + current.x,
+                y: sum.y + current.y
+              };
+            })
+          );
+        } else {
+          base.endWith = get_swipe_direction(
+            last_arr(1, offset_stack.swipe)
+          );
+        }
       } else 
       
-      if (type_id === 'pinch') {
-        //
+      if (type_id.indexOf('pinch') === 0) {
+        if (type_id === 'pinch') {
+          base.endWith = get_pinch_direction(
+            offset_stack.pinch.reduce(function(sum, current){
+              return sum + current;
+            })
+          );
+        } else {
+          base.endWith = get_pinch_direction(
+            last_arr(1, offset_stack.pinch)
+          );
+        }
       } else
 
-      if (type_id === 'rotate') {
-        //
+      if (type_id.indexOf('rotate') === 0) {
+        if (type_id === 'pinch') {
+          base.endWith = get_rotate_direction(
+            offset_stack.rotate.reduce(function(sum, current){
+              return sum + current;
+            })
+          );
+        } else {
+          base.endWith = get_rotate_direction(
+            last_arr(1, offset_stack.rotate)
+          );
+        }
       }
     }
   });

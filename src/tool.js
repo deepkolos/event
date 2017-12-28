@@ -6,6 +6,19 @@ import {
   DEFAULT_LONGTAP_THRESHOLD
 } from './define';
 
+export function parse_alias (config) {
+  var type = config.type;
+
+  if (type === 'doubletap') {
+    config.repeat = 2;
+    config.type   = 'tap';
+  } else
+
+  if (type === '') {
+    //
+  }
+}
+
 export function make_flat_base(config) {
   parse_alias(config);
   var repeat = config.repeat || 1;
@@ -340,6 +353,7 @@ export function get_swipe_offset (start_points, end_points, cache_start) {
 export function get_pinch_offset (start_points, end_points, cache_start) {
   var end_orthocenter   = get_orthocenter(end_points);
   
+  // 缓存不该这样做的, 感觉需要改, 虽然绝对那样封装成函数粒度太小了
   if (cache_start) {
     return 0 +
       get_avg(end_points.map(function(point){
@@ -385,15 +399,37 @@ export function get_rotate_offset (start_points, end_points, cache_start) {
     }));
 }
 
-export function parse_alias (config) {
-  var type = config.type;
+export function get_swipe_direction (vector){
+  var x_mod = Math.abs(vector.x);
+  var y_mod = Math.abs(vector.y);
 
-  if (type === 'doubletap') {
-    config.repeat = 2;
-    config.type   = 'tap';
-  } else
+  if (x_mod >= y_mod) {
+    if (vector.x > 0) {
+      return START_END_WITH.swipe.right;
+    } else {
+      return START_END_WITH.swipe.left;
+    }
+  } else {
+    if (vector.y > 0) {
+      return START_END_WITH.swipe.up;
+    } else {
+      return START_END_WITH.swipe.down;
+    }
+  }
+}
 
-  if (type === '') {
-    //
+export function get_pinch_direction (number){
+  if (number >= 0) {
+    return START_END_WITH.pinch.out;
+  } else {
+    return START_END_WITH.pinch.in;
+  }
+}
+
+export function get_rotate_direction (number){
+  if (number >= 0) {
+    return START_END_WITH.rotate.clockwise;
+  } else {
+    return START_END_WITH.rotate.anticlockwise;
   }
 }
