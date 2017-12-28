@@ -110,7 +110,9 @@ ScheduleController.prototype.write_base = function(config){
   if (EVENT[type].type === TYPE_CONTINUOUS && config.finger !== undefined) {
     if (this.base[type+'_'+config.finger]) {
       this.base[type+'_'+config.finger] = {
-        status: STATUS.init
+        status:    STATUS.init,
+        endWith:   undefined,
+        startWith: undefined
       };
     }
   } else
@@ -120,11 +122,11 @@ ScheduleController.prototype.write_base = function(config){
     this.base[type] = {
       status: STATUS.init
     };
-  }
 
-  if(EVENT[type].type === TYPE_CONTINUOUS){
-    this.base[type].startWith = undefined;
-    this.base[type].endWith = undefined;
+    if(EVENT[type].type === TYPE_CONTINUOUS){
+      this.base[type].startWith = undefined;
+      this.base[type].endWith = undefined;
+    }
   }
 };
 

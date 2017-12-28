@@ -336,20 +336,7 @@ function groupend(evt) {
     group_progress++;
     timer.start('group_gap');
   } else {
-    group_progress = 0;
-    // 清空evt_stack
-    clean_arr(evt_stack.start.increase);
-    delete evt_stack.start.increase;
-    evt_stack.start.increase = [];
-
-    clean_arr(evt_stack.end);
-    delete evt_stack.end;
-    evt_stack.end = [];
-
-    delete evt_stack.move.last;
-    delete evt_stack.move.current;
-    delete evt_stack.start.current;
-    delete evt_stack.continuous.start;
+    reset();
   }
 }
 
@@ -357,7 +344,7 @@ function group_gap_trigger() {
   start_bus_bubble({
     type: 'group_gap'
   }, function(){}, function(){
-    group_progress = 0;
+    reset();
     console.log('group_gap 重置进度');
   }, function(){
     // debugger;
@@ -486,23 +473,28 @@ function update_triggerlist(evt) {
         base_config.finger === get_current_finger(base, base_config, evt) || //longtap的自定义触发引用需要更换
         base_config.finger === undefined
       ) {
-        // if (group.status === EVENT_STATUS.end) debugger;
-        // 需要查看是否有更长的group, 是否还有机会触发
-        if (group_progress < max_group_len && group.status === STATUS.end) {
-          // 把这次的触发压到堆栈里面去
-          if (longer_groups.some(function(group){
-            // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
-            // get_type_id绝对有问题, 不应该这么频繁出现的
-            var base_status = schedule.base[group.group[group_progress].type_id].status;
-  
-            return (
-              base_status === STATUS.start ||
-              base_status === STATUS.move ||
-              base_status === STATUS.end
-            );
-          })) {
-            group_gap_stack.push(groupId);
-            return;
+        
+        //目前给设置了finger的continuous直接通过触发就好的了,感觉设计有问题,group_gap的问题
+        if (EVENT[base_config.type].type === TYPE_CONTINUOUS && base_config === undefined) {
+
+          // if (group.status === EVENT_STATUS.end) debugger;
+          // 需要查看是否有更长的group, 是否还有机会触发
+          if (group_progress < max_group_len && group.status === STATUS.end) {
+            // 把这次的触发压到堆栈里面去
+            if (longer_groups.some(function(group){
+              // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
+              // get_type_id绝对有问题, 不应该这么频繁出现的
+              var base_status = schedule.base[group.group[group_progress].type_id].status;
+    
+              return (
+                base_status === STATUS.start ||
+                base_status === STATUS.move ||
+                base_status === STATUS.end
+              );
+            })) {
+              group_gap_stack.push(groupId);
+              return;
+            }
           }
         }
 
@@ -581,29 +573,25 @@ function test_when(when){
 }
 
 function get_current_finger(base, base_config, evt) {
-  switch (base_config.type) {
-  case 'tap':
+  var type = base_config.type;
 
-    switch (base.status) {
-    case STATUS.start:
-      return last_arr(1, evt_stack.start.increase).touches.length;
-    case STATUS.end:
-      return last_arr(1, evt_stack.start.increase).touches.length;
-    case STATUS.cancel:
-      return last_arr(1, evt_stack.start.increase).touches.length;
-    }
+  if (type === 'tap') {
+    return last_arr(1, evt_stack.start.increase).touches.length;
+  } else
 
-    break;
-  case 'longtap':
+  if (type === 'longtap') {
+    return last_arr(1, evt_stack.start.increase).touches.length;
+  }
 
-    switch (base.status) {
-    case STATUS.start:
-      return last_arr(1, evt_stack.start.increase).touches.length;
-    case STATUS.end:
-      return last_arr(1, evt_stack.start.increase).touches.length;
-    }
-
-    break;
+  // finger设置的end一般都是直接放行
+  if (
+    EVENT[base_config.type].type === TYPE_CONTINUOUS && 
+    base_config.finger !== undefined &&
+    base.status === STATUS.end
+  ) {
+    // 在这里重置其生命周期
+    base.status = STATUS.init;
+    return base_config.finger;
   }
 
   return evt.touches.length;
@@ -626,6 +614,23 @@ function update_cache (evt) {
     offset_stack.pinch.push(0);
     offset_stack.rotate.push(0);
   }
+}
+
+function reset () {
+  group_progress = 0;
+  // 清空evt_stack
+  clean_arr(evt_stack.start.increase);
+  delete evt_stack.start.increase;
+  evt_stack.start.increase = [];
+
+  clean_arr(evt_stack.end);
+  delete evt_stack.end;
+  evt_stack.end = [];
+
+  delete evt_stack.move.last;
+  delete evt_stack.move.current;
+  delete evt_stack.start.current;
+  delete evt_stack.continuous.start;
 }
 
 // update base status
@@ -665,20 +670,23 @@ function touchstart(evt) {
   evt_stack.start.current = evt;
 
   // 触发finger设定为定值的continuous
-  schedule.set_base(`swipe_${touch_num-1}`, STATUS.end);
+  schedule.set_base(`swipe_${touch_num-1}`,  STATUS.end);
+  schedule.set_base(`pinch_${touch_num-1}`,  STATUS.end);
+  schedule.set_base(`rotate_${touch_num-1}`, STATUS.end);
 }
 
 function touchmove(evt) {
   var touch_num = evt.touches.length;
 
   schedule.set_base('tap', STATUS.cancel);
-  schedule.set_base('longtap', STATUS.cancel);
   schedule.set_base('swipe', STATUS.move);
   schedule.set_base('swipe', STATUS.start);
   schedule.set_base(`swipe_${touch_num}`, STATUS.move);
   schedule.set_base(`swipe_${touch_num}`, STATUS.start);
-  timer.stop('longtap');
   // 将会在start里面补一帧的move
+
+  timer.stop('longtap');
+  schedule.set_base('longtap', STATUS.cancel);
 
   evt_stack.move.last = evt_stack.move.current
                       ? evt_stack.move.current
@@ -711,7 +719,9 @@ function touchend(evt) {
   schedule.set_base('longtap', STATUS.cancel);
   timer.stop('longtap_debounce');
 
-  schedule.set_base(`swipe_${touch_num+1}`, STATUS.end);
+  schedule.set_base(`swipe_${touch_num+1}`,  STATUS.end);
+  schedule.set_base(`pinch_${touch_num+1}`,  STATUS.end);
+  schedule.set_base(`rotate_${touch_num+1}`, STATUS.end);
 }
 
 function touchcancel(evt) {
