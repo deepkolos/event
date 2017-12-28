@@ -663,13 +663,20 @@ function touchstart(evt) {
 
   update_cache(evt);
   evt_stack.start.current = evt;
+
+  // 触发finger设定为定值的continuous
+  schedule.set_base(`swipe_${touch_num-1}`, STATUS.end);
 }
 
 function touchmove(evt) {
+  var touch_num = evt.touches.length;
+
   schedule.set_base('tap', STATUS.cancel);
   schedule.set_base('longtap', STATUS.cancel);
   schedule.set_base('swipe', STATUS.move);
   schedule.set_base('swipe', STATUS.start);
+  schedule.set_base(`swipe_${touch_num}`, STATUS.move);
+  schedule.set_base(`swipe_${touch_num}`, STATUS.start);
   timer.stop('longtap');
   // 将会在start里面补一帧的move
 
@@ -684,18 +691,27 @@ function touchmove(evt) {
     schedule.set_base('pinch', STATUS.start);
     schedule.set_base('rotate', STATUS.move);
     schedule.set_base('rotate', STATUS.start);
+    schedule.set_base(`pinch_${touch_num}`, STATUS.move);
+    schedule.set_base(`pinch_${touch_num}`, STATUS.start);
+    schedule.set_base(`rotate_${touch_num}`, STATUS.move);
+    schedule.set_base(`rotate_${touch_num}`, STATUS.start);
   }
 }
 
-function touchend(evt) {  
-  if (evt.touches.length === 0) {
+function touchend(evt) {
+  var touch_num = evt.touches.length;
+
+  if (touch_num === 0) {
     schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);
   } else {
     update_cache(evt);
   }
+
   schedule.set_base('longtap', STATUS.cancel);
   timer.stop('longtap_debounce');
+
+  schedule.set_base(`swipe_${touch_num+1}`, STATUS.end);
 }
 
 function touchcancel(evt) {

@@ -65,13 +65,6 @@ ScheduleController.prototype.set_base = function(type, set_status){
         this.updated_base.push(id);
       }
     }
-  } else
-
-  if (EVENT[type] === TYPE_CONTINUOUS) {
-    // 处理swipe, pinch, rotate, 这类连续事件, 一般是不会被打断的, 打断原因会是startWith/endWith限制
-
-    
-
   }
 };
 
@@ -103,7 +96,7 @@ ScheduleController.prototype.empty_group = function(){
 ScheduleController.prototype.write_base = function(config){
   var type = config.type;
 
-  //特殊处理longtap
+  // 特殊处理longtap
   if(type === 'longtap'){
     if(this.base[type+'_'+config.longtapThreshold] === undefined){
       this.base[type+'_'+config.longtapThreshold] = {
@@ -111,7 +104,19 @@ ScheduleController.prototype.write_base = function(config){
         threshold: config.longtapThreshold
       };
     }
-  }else if(this.base[type] === undefined){
+  }else 
+
+  // 特殊处理continuous, 允许finger之间是互斥的, 如果有设置的话
+  if (EVENT[type].type === TYPE_CONTINUOUS && config.finger !== undefined) {
+    if (this.base[type+'_'+config.finger]) {
+      this.base[type+'_'+config.finger] = {
+        status: STATUS.init
+      };
+    }
+  } else
+  
+  // 一般的处理, 包括没有设置finger的continuous
+  if(this.base[type] === undefined){
     this.base[type] = {
       status: STATUS.init
     };
