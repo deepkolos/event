@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function() {
       longtapThreshold: 1000/*ms*/
     },
 
-    endWith:   ['right', 'vertical', 'horizontal'],
+    endWith:   ['right'],
     startWith: ['left'],
 
     end:       function(){console.log('swipe end');},

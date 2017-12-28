@@ -154,8 +154,9 @@ function init_start_end_with_helper (type, config) {
     result = explode_with_string(_with, evt_type);
   } else if (_with instanceof Array) {
     _with.forEach(function(string){
-      explode_with_string(string, evt_type)
-        .forEach(result.push.bind(result));
+      result = result.concat(
+        explode_with_string(string, evt_type)
+      );
     });
   }
 
@@ -185,7 +186,6 @@ function explode_with_string (string, evt_type){
 }
 
 export function init_start_end_with (config){
-  
   // 只有连续事件才有
   if(EVENT[config.type].type === TYPE_CONTINUOUS) {
     init_start_end_with_helper('endWith', config);
@@ -410,7 +410,7 @@ export function get_swipe_direction (vector){
       return START_END_WITH.swipe.left;
     }
   } else {
-    if (vector.y > 0) {
+    if (vector.y < 0) {
       return START_END_WITH.swipe.up;
     } else {
       return START_END_WITH.swipe.down;

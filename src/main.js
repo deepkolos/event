@@ -15,13 +15,13 @@ import {
   config_equal,
   get_orthocenter,
   make_flat_group,
-  get_pinch_offset,
   get_swipe_offset,
-  get_points_from_fingers,
+  get_pinch_offset,
+  get_rotate_offset,
   get_swipe_direction,
   get_pinch_direction,
   get_rotate_direction,
-  get_rotate_offset,
+  get_points_from_fingers,
 } from './tool';
 import {
   EVENT,
@@ -446,7 +446,7 @@ function update_triggerlist(evt) {
       if (
         // startWith
         (
-          base.status <= STATUS.start &&
+          base.status <= STATUS.start && 
           !config_equal(base.startWith, base_config.startWith)
         ) ||
         // endWith
@@ -512,48 +512,55 @@ function update_base_info () {
   schedule.updated_base.forEach(function(type_id){
     var offset = offset_stack[type_id];
     var base   = schedule.base[type_id];
+    var reduce = {
+      swipe: function(sum, current){
+        return {
+          x: sum.x + current.x,
+          y: sum.y + current.y};
+      },
+      pinch:  function(sum, current){return sum + current;},
+      rotate: function(sum, current){return sum + current;}
+    }; 
 
-    // 感觉可以整合一下, 不过先要验证逻辑是否正确
-
-    if(base.status === STATUS.start) {
-      // 生成startWidth
-      if (type_id.indexOf('swipe') === 0) {
-        base.startWith = get_swipe_direction(
-          get_swipe_offset(
+    function start_helper (type) {
+      if (type_id.indexOf(type) === 0) {
+        base.startWith = require('./tool')[`get_${type}_direction`](
+          require('./tool')[`get_${type}_offset`](
             cache.start_points,
             get_points_from_fingers(evt_stack.move.current.touches),
-            cache[`swipe_start_offset`]
-          )
-        );
-      } else 
-      
-      if (type_id.indexOf('pinch') === 0) {
-        base.startWith = get_pinch_direction(
-          get_pinch_offset(
-            cache.start_points,
-            get_points_from_fingers(evt_stack.move.current.touches),
-            cache[`pinch_start_offset`]
-          )
-        );
-      } else
-
-      if (type_id.indexOf('rotate') === 0) {
-        base.startWith = get_rotate_direction(
-          get_rotate_offset(
-            cache.start_points,
-            get_points_from_fingers(evt_stack.move.current.touches),
-            cache[`rotate_start_offset`]
+            cache[`swipe_${type}_offset`]
           )
         );
       }
+    }
+
+    function end_helper (type) {
+      if (type_id.indexOf('swipe') === 0) {
+        if(type_id === 'swipe') {
+          base.endWith = require('./tool')[`get_${type}_direction`](
+            offset_stack[type].reduce(reduce[type])
+          );
+        } else {
+          base.endWith = require('./tool')[`get_${type}_direction`](
+            last_arr(1, offset_stack[type])
+          );
+        }
+      }
+    }
+
+    if(base.status === STATUS.start) {
+      // 生成startWidth
+      start_helper('swipe');
+      start_helper('pinch');
+      start_helper('rotate');
     } else 
     
     if (base.status === STATUS.move || base.status === STATUS.start) {
       // continuous offset 更新栈顶的数据
       if (
-        type_id === 'swipe' ||
-        type_id === 'pinch' ||
-        type_id === 'rotate'
+        type_id.indexOf('swipe') === 0 ||
+        type_id.indexOf('pinch') === 0 ||
+        type_id.indexOf('rotate') === 0
       ) {
         offset[offset.length-1] = 
           require('./tool')[`get_${type_id}_offset`](
@@ -566,50 +573,9 @@ function update_base_info () {
 
     if(base.status === STATUS.end) {
       // endWith
-      if (type_id.indexOf('swipe') === 0) {
-        if(type_id === 'swipe') {
-          base.endWith = get_swipe_direction(
-            offset_stack.swipe.reduce(function(sum, current){
-              return {
-                x: sum.x + current.x,
-                y: sum.y + current.y
-              };
-            })
-          );
-        } else {
-          base.endWith = get_swipe_direction(
-            last_arr(1, offset_stack.swipe)
-          );
-        }
-      } else 
-      
-      if (type_id.indexOf('pinch') === 0) {
-        if (type_id === 'pinch') {
-          base.endWith = get_pinch_direction(
-            offset_stack.pinch.reduce(function(sum, current){
-              return sum + current;
-            })
-          );
-        } else {
-          base.endWith = get_pinch_direction(
-            last_arr(1, offset_stack.pinch)
-          );
-        }
-      } else
-
-      if (type_id.indexOf('rotate') === 0) {
-        if (type_id === 'pinch') {
-          base.endWith = get_rotate_direction(
-            offset_stack.rotate.reduce(function(sum, current){
-              return sum + current;
-            })
-          );
-        } else {
-          base.endWith = get_rotate_direction(
-            last_arr(1, offset_stack.rotate)
-          );
-        }
-      }
+      end_helper('swipe');
+      end_helper('pinch');
+      end_helper('rotate');
     }
   });
 }
@@ -644,8 +610,6 @@ function get_current_finger(base, base_config, evt) {
     base_config.finger !== undefined &&
     base.status === STATUS.end
   ) {
-    // 在这里重置其生命周期
-    base.status = STATUS.init;
     return base_config.finger;
   }
 
@@ -677,6 +641,10 @@ function reset () {
   clean_arr(evt_stack.start.increase);
   delete evt_stack.start.increase;
   evt_stack.start.increase = [];
+
+  offset_stack.swipe  = [];
+  offset_stack.pinch  = [];
+  offset_stack.rotate = [];
 
   clean_arr(evt_stack.end);
   delete evt_stack.end;
@@ -728,6 +696,9 @@ function touchstart(evt) {
   schedule.set_base(`swipe_${touch_num-1}`,  STATUS.end);
   schedule.set_base(`pinch_${touch_num-1}`,  STATUS.end);
   schedule.set_base(`rotate_${touch_num-1}`, STATUS.end);
+  schedule.set_base(`swipe_${touch_num}`,   STATUS.init);
+  schedule.set_base(`pinch_${touch_num}`,   STATUS.init);
+  schedule.set_base(`rotate_${touch_num}`,  STATUS.init);
 }
 
 function touchmove(evt) {
