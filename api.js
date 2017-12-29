@@ -111,3 +111,40 @@ groupDemo.removeEvent();
 
 //如果遇到[1] [1,2] 基事件描述1相同, 仅仅阻塞的是end事件
 //就是[1]的start,move事件依然会触发的, 至于是触发end, 还是cancel就需要看group_gap之内,下一个group有没有start
+
+// 参考hammer的Event Object
+function listener (info) { /*eslint no-unused-vars:0*/
+  info = {
+    // general
+    center: Number,
+    deltaTime: Number,
+
+    // swipe
+    deltaX: Number,
+    deltaY: Number,
+    distance: Number,
+    offsetDirection: Number,
+
+    // runtime
+    velocity: Number,
+    velocityX: Number,
+    velocityY: Number,
+    direction: Number,
+
+    // ratate
+    angle: Number,
+    rotation: Number,
+
+    // pinch
+    scale: Number,
+
+    // event
+    type: String,
+    eventType: String,
+    pointerType: String,
+    srcEvent: Event,
+    target: HTMLElement,
+    pointers: Array,
+    changedPointers: Array
+  };
+}
