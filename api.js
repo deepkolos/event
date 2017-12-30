@@ -116,35 +116,47 @@ groupDemo.removeEvent();
 function listener (info) { /*eslint no-unused-vars:0*/
   info = {
     // general
-    center: Number,
-    deltaTime: Number,
+    deltaTime:    Number, // 定义为该事件的start -> end的时间戳差值
+    orthocenter:  Number, // 当前时刻的重心
 
-    // swipe
-    deltaX: Number,
-    deltaY: Number,
-    distance: Number,
-    offsetDirection: Number,
+    // runtime 相对于上一个touchmove
+    velocity:     Number, //  向量的px/ms
+    velocityX:    Number, // x分量的px/ms
+    velocityY:    Number, // y分量的px/ms
+    direction:    String, // 感觉的确不应该使用string来作为状态的标识
 
-    // runtime
-    velocity: Number,
-    velocityX: Number,
-    velocityY: Number,
-    direction: Number,
+    // swipe   相对于start的touchmove, 当前时刻相对于start时刻重心的向量的
+    swipe: {
+      deltaX:     Number, // x分量
+      deltaY:     Number, // y分量
+      distance:   Number, // 模
+      startWith:  String,
+      endWith:    String,
+    },
 
     // ratate
-    angle: Number,
-    rotation: Number,
-
+    rotate: {
+      angle:      Number, // 单位弧度, 计算规则是当前各点到重心的弧度值的平均值,当没有重心的情况会有bug
+      startWith:  String,
+      endWith:    String,
+    },
+    
     // pinch
-    scale: Number,
+    pinch: {
+      scale:      Number, // 同distance
+      startWith:  String,
+      endWith:    String,
+    },
+
+    longtap: {
+      threshold:  Number, // 单位ms
+    },
 
     // event
-    type: String,
-    eventType: String,
-    pointerType: String,
-    srcEvent: Event,
-    target: HTMLElement,
-    pointers: Array,
-    changedPointers: Array
+    type:         String, // 触发事件名字
+    eventType:    String, // 事件类型, 从EVENT的定义信息
+    srcEvent:     Event,
+    target:       HTMLElement,
+    pointers:     Array,  // 应该是touches, 提供raw信息源
   };
 }
