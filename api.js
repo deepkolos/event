@@ -1,5 +1,4 @@
 import { addEvent } from "./index";
-import { Number, String } from "core-js/library/web/timers";
 
 // API约定样例
 
@@ -17,9 +16,9 @@ var type = [
 var controller = addEvent(document.createElement('div'), {
   type: type,
   //config
-  disable: Boolean,
-  repeat: Number,
-  finger: Number,
+  disable: Boolean, // 默认false
+  repeat:  Number,
+  finger:  Number,
   when: {//其含义是在一个group内某个事件之后,所以必须是基事件,但是需要支持after的嵌套..不支持,不想增加复杂度了
     type: type,
     finger: Number,
@@ -35,8 +34,8 @@ var controller = addEvent(document.createElement('div'), {
 
   //triggerRegister
   start:  _start,
-  move:   _move,// 连续事件会触发这个
-  end:    _end,//离散事件仅仅支持end和cancel,但是语义不好
+  move:   _move,   // 连续事件会触发这个
+  end:    _end,    //离散事件仅仅支持end和cancel,但是语义不好
   cancel: _cancal
 });
 
@@ -113,50 +112,116 @@ groupDemo.removeEvent();
 //就是[1]的start,move事件依然会触发的, 至于是触发end, 还是cancel就需要看group_gap之内,下一个group有没有start
 
 // 参考hammer的Event Object
-function listener (info) { /*eslint no-unused-vars:0*/
+function listener_df (info) { /*eslint no-unused-vars:0*/
   info = {
+    // event
+    target:       HTMLElement,
+    type:         String, // 触发事件名字
+    eventType:    String, // 事件类型, 从EVENT的定义信息
+    srcEvent:     Event,
+    touches:      Array,  // 提供raw信息源
+    // 感觉需要个config的链接, TBD
+
     // general
     deltaTime:    Number, // 定义为该事件的start -> end的时间戳差值
-    orthocenter:  Number, // 当前时刻的重心
+    orthocenter:  Object, // 当前时刻的重心
 
-    // runtime 相对于上一个touchmove
-    velocity:     Number, //  向量的px/ms
-    velocityX:    Number, // x分量的px/ms
-    velocityY:    Number, // y分量的px/ms
-    direction:    String, // 感觉的确不应该使用string来作为状态的标识
+    // instant 相对于上一个touchmove的事件而言
+    velocity: {
+      x:          Number, // x分量的px/ms
+      y:          Number, // y分量的px/ms
+      distance:   Number, //  向量的px/ms
+      angle:      Number,
+      scale:      Number,
+    },
+
+    instant : {
+      direction: {
+        swipe:    String,
+        pinch:    String,
+        rotate:   String
+      }
+    },
 
     // swipe   相对于start的touchmove, 当前时刻相对于start时刻重心的向量的
     swipe: {
-      deltaX:     Number, // x分量
-      deltaY:     Number, // y分量
-      distance:   Number, // 模
-      startWith:  String,
-      endWith:    String,
+      x:          Number, // x分量
+      y:          Number, // y分量
+      distance:   Number, // 向量的模
+      startWith:  String, // 开始时的方向
+      endWith:    String, // 结束时的方向
+      direction:  String, // 感觉的确不应该使用string来作为状态的标识
     },
 
     // ratate
     rotate: {
       angle:      Number, // 单位弧度, 计算规则是当前各点到重心的弧度值的平均值,当没有重心的情况会有bug
-      startWith:  String,
-      endWith:    String,
+      startWith:  String, // 开始时的方向
+      endWith:    String, // 结束时的方向
+      direction:  String,
     },
     
     // pinch
     pinch: {
       scale:      Number, // 同distance
-      startWith:  String,
-      endWith:    String,
+      startWith:  String, // 开始时的方向
+      endWith:    String, // 结束时的方向
+      direction:  String,
     },
 
+    // longtap TBD
     longtap: {
       threshold:  Number, // 单位ms
-    },
+    }
+  };
+}
 
+function listener_uf (info) { /*eslint no-unused-vars:0*/
+  info = {
     // event
     type:         String, // 触发事件名字
     eventType:    String, // 事件类型, 从EVENT的定义信息
     srcEvent:     Event,
     target:       HTMLElement,
-    pointers:     Array,  // 应该是touches, 提供raw信息源
+    touches:      Array,  // 提供raw信息源
+    // 感觉需要个config的链接, TBD
+
+    // general
+    deltaTime:    Number, // 定义为该事件的start -> end的时间戳差值
+    orthocenter:  Object, // 当前时刻的重心
+
+    velocityX:          Number,
+    velocityY:          Number,
+    velocityDistance:   Number,
+    velocityAngle:      Number,
+    velocityScale:      Number,
+
+    // instant 相对于上一个touchmove的事件而言
+    instantSwipeDirection:    String,
+    instantPinchDirection:    String,
+    instantRotateDirection:   String,
+
+    // swipe   相对于start的touchmove, 当前时刻相对于start时刻重心的向量的
+    swipeX:           Number, // x分量
+    swipeY:           Number, // y分量
+    swipeDistance:    Number, // 向量的模
+    swipeStartWith:   String, // 开始时的方向
+    swipeEndWith:     String, // 结束时的方向
+    swipeDirection:   String, // 感觉的确不应该使用string来作为状态的标识
+
+    // ratate
+    rotateAngle:      Number, // 单位弧度, 计算规则是当前各点到重心的弧度值的平均值,当没有重心的情况会有bug
+    rotateStartWith:  String, // 开始时的方向
+    rotateEndWith:    String, // 结束时的方向
+    rotateDirection:  String, // 感觉的确不应该使用string来作为状态的标识
+    
+    // pinch
+    pinchScale:       Number, // 同distance
+    pinchStartWith:   String, // 开始时的方向
+    pinchEndWith:     String, // 结束时的方向
+    pinchDirection:   String, // 感觉的确不应该使用string来作为状态的标识
+
+    // longtap TBD
+    longtapThreshold: Number, // 单位ms
   };
 }

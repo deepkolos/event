@@ -165,6 +165,7 @@ var offset_stack = {
   rotate: []
 };
 
+// 核心流程
 function bus(evt, usePatch) {
   var $dom = this;
   var dom_index = $dom.__event._tmp_index;
