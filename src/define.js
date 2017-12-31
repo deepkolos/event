@@ -65,33 +65,17 @@ const EVENT = {
     type: TYPE_MONENT,
     on:   ON_DOM
   },
-  enter: {
-    type: TYPE_MONENT,
-    on:   ON_DOM
-  },
-  leave: {
-    type: TYPE_MONENT,
-    on:   ON_DOM
-  },
   over: {
     type: TYPE_CONTINUOUS,
     on:   ON_DOM
   },
 
   //对事件的继续分化事件
-  groupstart: {
+  groupEvent: {
     type: TYPE_MONENT,
     on:   ON_EVENT
   },
-  groupend: {
-    type: TYPE_MONENT,
-    on:   ON_EVENT
-  },
-  bubblestart: {
-    type: TYPE_MONENT,
-    on:   ON_EVENT
-  },
-  bubbleend: {
+  bubbleEvent: {
     type: TYPE_MONENT,
     on:   ON_EVENT
   }

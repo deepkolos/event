@@ -1,4 +1,4 @@
-import Info               from './info.js';
+import Info               from './info';
 import IDGenerator        from './id-generator';
 import TimerController    from './timer-controller';
 import EventController    from './event-controller';
@@ -254,6 +254,8 @@ function bus(evt, usePatch) {
 }
 
 function bubblestart(evt, patch) {
+  var need_trigger_groupstart = false;
+
   triggerlist = [];
   
   schedule.empty_updated_base();
@@ -264,14 +266,40 @@ function bubblestart(evt, patch) {
     //尝试去触发groupstart
     if (evt.touches.length === 1 && evt.type === 'touchstart' && evt.type === 'touchstart') {
       groupstart(evt);
+
+      need_trigger_groupstart = true;
     }
     update_base_status(evt);
   }
 
   evt_info = new Info();
 
-  //事件发生源,生成triggerlist
+  // 事件发生源,生成triggerlist
   update_triggerlist(evt);
+
+  // 触发bubblestart
+  dom_involved.forEach(function($dom){
+    var bubbleEvent = $dom.__event[ON_EVENT].bubbleEvent;
+
+    if (bubbleEvent) {
+      for (var id in bubbleEvent) {
+        bubbleEvent[id].config.start instanceof Function &&
+          bubbleEvent[id].config.start.call($dom);
+      }
+    }
+  });
+  
+  // 触发groupstart
+  dom_involved.forEach(function($dom){
+    var groupEvent = $dom.__event[ON_EVENT].groupEvent;
+
+    if (groupEvent) {
+      for (var id in groupEvent) {
+        groupEvent[id].config.start instanceof Function &&
+          groupEvent[id].config.start.call($dom);
+      }
+    }
+  });
 }
 
 function bubbleend(evt, patch) {
@@ -338,10 +366,6 @@ function groupstart(evt) {
           schedule.write_base(base.when);
       }
     }
-
-    //初始化完毕
-
-    // 触发bubbulestart
   });
 }
 
