@@ -288,8 +288,9 @@ function bubblestart(evt, patch) {
       }
     }
   });
-  
+
   // 触发groupstart
+  need_trigger_groupstart &&
   dom_involved.forEach(function($dom){
     var groupEvent = $dom.__event[ON_EVENT].groupEvent;
 
@@ -303,14 +304,42 @@ function bubblestart(evt, patch) {
 }
 
 function bubbleend(evt, patch) {
+  var need_trigger_groupend = false;
+
   if (patch instanceof Function) {
     patch();
   } else {
     //尝试去触发groupsend
     if (evt.touches.length === 0 && evt.type === 'touchend') {
       groupend(evt);
+      need_trigger_groupend = true;
     }
   }
+
+  // 触发bubbleend
+  dom_involved.forEach(function($dom){
+    var bubbleEvent = $dom.__event[ON_EVENT].bubbleEvent;
+
+    if (bubbleEvent) {
+      for (var id in bubbleEvent) {
+        bubbleEvent[id].config.end instanceof Function &&
+          bubbleEvent[id].config.end.call($dom);
+      }
+    }
+  });
+  
+  // 触发groupend
+  need_trigger_groupend &&
+  dom_involved.forEach(function($dom){
+    var groupEvent = $dom.__event[ON_EVENT].groupEvent;
+
+    if (groupEvent) {
+      for (var id in groupEvent) {
+        groupEvent[id].config.end instanceof Function &&
+          groupEvent[id].config.end.call($dom);
+      }
+    }
+  });
 }
 
 function groupstart(evt) {
