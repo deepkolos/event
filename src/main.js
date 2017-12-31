@@ -1,3 +1,4 @@
+import Info               from './info.js';
 import IDGenerator        from './id-generator';
 import TimerController    from './timer-controller';
 import EventController    from './event-controller';
@@ -136,6 +137,7 @@ var group_gap_stack    = [];     // 储存groupid因为还有更长的group而�
 var last_dom_involved  = [];
 var lock_status        = false;
 var bubble_started     = false;
+var evt_info           = null;
 
 var cache = {
   start_points:        null,
@@ -187,6 +189,26 @@ function bus(evt, usePatch) {
       lock_status === false && lock_dom === -1
     )
   ) {
+    // 初始化evt_ctrl
+
+    var evt_ctrl = {
+      lock:             function(){
+        lock_dom = dom_index;
+        lock_status = true;
+      },
+      unlock:           function(){
+        lock_status = false;
+      },
+      preventDefault:   function(){
+        evt.preventDefault();
+      },
+      stopPropagation:  function(){
+        evt.stopPropagation();
+        bubble_started = false;
+        bubbleend(evt);
+      },
+    };
+
     // 消化triggerlist
     // 这里的循环可以优化
     triggerlist.forEach(function (groupId) {
@@ -201,34 +223,17 @@ function bus(evt, usePatch) {
 
           if (info.config.disable !== true) {
             listener instanceof Function && listener.call($dom,
-              // info
-              evt,
-              // lock
-              function(){
-                lock_dom = dom_index;
-                lock_status = true;
-              },
-              // unlock
-              function(){
-                lock_status = false;
-              });
+              evt_info,
+              evt_ctrl
+            );
 
             // start补一帧move, TYPE_CONTINUOUS的事件
             EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
             group.status === STATUS.start &&
             info.config.move instanceof Function &&
               info.config.move.call($dom,
-                // info
-                evt,
-                // lock
-                function(){
-                  lock_dom = dom_index;
-                  lock_status = true;
-                },
-                // unlock
-                function(){
-                  lock_status = false;
-                }
+                evt_info,
+                evt_ctrl
               );
           }
         }
@@ -236,7 +241,11 @@ function bus(evt, usePatch) {
     });
   }
 
-  if (bubble_started === true && $dom === last_dom_involved && usePatch !== true) {
+  if (
+    bubble_started === true && 
+    $dom === last_dom_involved && 
+    usePatch !== true
+  ) {
     //不过一般一个bubble的执行时间不会那么长的,不过如果使用了模版编译之类的,就有可能很长时间,
     //本来打算使用一个frame的时间结束所谓end的,还是不行,行为就不同了
     bubble_started = false;
@@ -259,7 +268,7 @@ function bubblestart(evt, patch) {
     update_base_status(evt);
   }
 
-  // console.log(schedule.updated_base);
+  evt_info = new Info();
 
   //事件发生源,生成triggerlist
   update_triggerlist(evt);

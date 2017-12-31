@@ -1,8 +1,6 @@
-import { last_arr }     from './tool';
 import { STATUS } from './define';
 import { 
   schedule,
-  evt_stack,
   start_bus_bubble,
   group_gap_trigger
 } from './main';

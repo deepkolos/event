@@ -30,7 +30,7 @@ var controller = addEvent(document.createElement('div'), {
   longtapThreshold: Number,//longtap间隔时间,暂定
   startWith: String/Array,//在不同的事件有不同的含义,快照值
   endWith: String/Array,//快照值
-  ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发, 这层灵活性先不提供了
+  ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发, 这层灵活性先不提供了, 但是看了hammer的, 还是需要提供的, 通过failureWith, 灵活性比我的高
 
   //triggerRegister
   start:  _start,
@@ -112,7 +112,7 @@ groupDemo.removeEvent();
 //就是[1]的start,move事件依然会触发的, 至于是触发end, 还是cancel就需要看group_gap之内,下一个group有没有start
 
 // 参考hammer的Event Object
-function listener_df (info) { /*eslint no-unused-vars:0*/
+function listener_df (info, ctrl) { /*eslint no-unused-vars:0*/
   info = {
     // event
     target:       HTMLElement,
@@ -173,6 +173,14 @@ function listener_df (info) { /*eslint no-unused-vars:0*/
     longtap: {
       threshold:  Number, // 单位ms
     }
+  };
+
+  // 一些控制方法单独出来
+  ctrl = {
+    lock:             function(){},
+    unlock:           function(){},
+    preventDefault:   function(){},
+    stopPropagation:  function(){},
   };
 }
 
