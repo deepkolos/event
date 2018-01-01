@@ -8,6 +8,7 @@ import {
   init_when,
   clean_arr,
   get_rotate,
+  plus_divide,
   parse_alias,
   get_type_id,
   get_group_Id,
@@ -22,7 +23,6 @@ import {
   get_pinch_direction,
   get_rotate_direction,
   get_points_from_fingers,
-  plus_divide,
 } from './tool';
 import {
   EVENT,
@@ -801,7 +801,7 @@ function update_event_info (evt) {
     function general_helper (type) {
       if (type_id.indexOf(type) === 0) {
         evt_info[type].startWith = base.startWith;
-        evt_info[type].endWith = base.endWith;
+        evt_info[type].endWith   = base.endWith;
 
         if(type_id === type) {
           tmp = offset_stack[type].reduce(reduce[type]);
@@ -842,7 +842,11 @@ function update_event_info (evt) {
         } else
         if (type === 'rotate') {
           evt_info[type].angle = tmp;
-          evt_info.velocity.angle = velocity_tmp / last_current_deltatime;
+          evt_info.velocity.angle = type_id === type
+            ? plus_divide(velocity_tmp, cache[`${type}_first_offset`])
+            : plus_divide(velocity_tmp, cache[`${type}_start_offset`]);
+          
+          evt_info.velocity.angle /= last_current_deltatime;
         }
       }
     }
@@ -851,6 +855,7 @@ function update_event_info (evt) {
     general_helper('pinch');
     general_helper('rotate');
 
+    // evt_info挂到对应的group下
     schedule.group[groupId].evt_info = evt_info;
   });
 }

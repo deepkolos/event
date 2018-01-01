@@ -15,6 +15,8 @@ const START_END_WITH = {
   swipe:  new Type('up', 'right', 'down', 'left'),
   pinch:  new Type('in', 'out'),
   rotate: new Type('clockwise', 'anticlockwise'),
+  over:   new Type('inside', 'top', 'right', 'bottom' ,'left')
+  // outside(top, right, bottom ,left)
 };
 
 const STATUS = new Type({
