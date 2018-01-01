@@ -22,6 +22,7 @@ import {
   get_pinch_direction,
   get_rotate_direction,
   get_points_from_fingers,
+  plus_divide,
 } from './tool';
 import {
   EVENT,
@@ -140,9 +141,14 @@ var evt_info           = null;
 
 var cache = {
   start_points:        null,
+  // 每次finger的时候的值, 非偏移, 比如两点pinch的半径的值,非offset,这里感觉需要改名字,
   swipe_start_offset:  null,
   pinch_start_offset:  null,
   rotate_start_offset: null,
+  // 用于记录continuous的时候finger为undefined时候的最初始值
+  swipe_first_offset:  null,
+  pinch_first_offset:  null,
+  rotate_first_offset: null,
 };
 
 var evt_stack = {
@@ -573,7 +579,7 @@ function update_triggerlist(evt) {
 
 function update_base_info () {
   schedule.updated_base.forEach(function(type_id){
-    var offset = offset_stack[type_id];
+    var offset = offset_stack[type_id.split('_')[0]];
     var base   = schedule.base[type_id];
     var reduce = {
       swipe: function(sum, current){
@@ -692,9 +698,20 @@ function update_cache (evt) {
   }));
   offset_stack.swipe.push({x: 0, y: 0});
 
+  if (offset_stack.swipe.length === 0) {
+    cache.swipe_first_offset = cache.swipe_start_offset;
+  }
+
   if (evt.touches.length > 1 ) {
     offset_stack.pinch.push(0);
     offset_stack.rotate.push(0);
+
+    if (offset_stack.pinch.length === 0) {
+      cache.pinch_first_offset = cache.pinch_start_offset;
+    }
+    if (offset_stack.rotate.length === 0) {
+      cache.rotate_first_offset = cache.rotate_start_offset;
+    }
   }
 }
 
@@ -717,6 +734,10 @@ function reset () {
   delete evt_stack.move.current;
   delete evt_stack.start.current;
   delete evt_stack.continuous.start;
+
+  for (var name in cache) {
+    delete cache[name];
+  }
 }
 
 function update_event_info (evt) {
@@ -807,8 +828,15 @@ function update_event_info (evt) {
           evt_info.velocity.y = velocity_tmp.y / last_current_deltatime;
         } else
         if (type === 'pinch') {
-          evt_info[type].scale = tmp;
-          evt_info.velocity.scale = velocity_tmp / last_current_deltatime;
+          evt_info[type].scale = type_id === type
+            ? plus_divide(tmp, cache[`${type}_first_offset`])
+            : plus_divide(tmp, cache[`${type}_start_offset`]);
+
+          evt_info.velocity.scale = type_id === type
+            ? plus_divide(velocity_tmp, cache[`${type}_first_offset`])
+            : plus_divide(velocity_tmp, cache[`${type}_start_offset`]);
+            
+          evt_info.velocity.scale /= last_current_deltatime;
         } else
         if (type === 'rotate') {
           evt_info[type].angle = tmp;

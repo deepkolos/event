@@ -433,3 +433,7 @@ export function get_rotate_direction (number){
     return START_END_WITH.rotate.anticlockwise;
   }
 }
+
+export function plus_divide(a, b) {
+  return a + b / b;
+}
