@@ -382,7 +382,7 @@ export function get_rotate_offset (start_points, end_points, cache_start) {
     return 0 +
       get_avg(end_points.map(function(point){
         return get_rotate(point, end_orthocenter);
-      }))
+      })) - (Math.PI/end_points.length)
       -
       cache_start;
   }
@@ -392,11 +392,11 @@ export function get_rotate_offset (start_points, end_points, cache_start) {
   return 0 +
     get_avg(end_points.map(function(point){
       return get_rotate(point, end_orthocenter);
-    }))
+    })) - (Math.PI/end_points.length)
     -
     get_avg(start_points.map(function(point){
       return get_rotate(point, start_orthocenter);
-    }));
+    })) - (Math.PI/end_points.length);
 }
 
 export function get_swipe_direction (vector){

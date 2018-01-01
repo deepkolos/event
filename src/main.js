@@ -687,6 +687,7 @@ function get_current_finger(base, base_config, evt) {
 
 function update_cache (evt) {
   // continuous offset 每次点击都会压栈, finger数目变更都会用新的记录
+  evt_stack.move.current     = null;
   evt_stack.continuous.start = evt;
   cache.start_points         = get_points_from_fingers(evt.touches);
   cache.swipe_start_offset   = get_orthocenter(cache.start_points);
@@ -695,7 +696,7 @@ function update_cache (evt) {
   }));
   cache.rotate_start_offset  = get_avg(cache.start_points.map(function(point){
     return get_rotate(point, cache.swipe_start_offset);
-  }));
+  })) - (Math.PI/cache.start_points.length);
   offset_stack.swipe.push({x: 0, y: 0});
 
   if (offset_stack.swipe.length === 0) {
@@ -713,6 +714,7 @@ function update_cache (evt) {
       cache.rotate_first_offset = cache.rotate_start_offset;
     }
   }
+
 }
 
 function reset () {
