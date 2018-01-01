@@ -31,6 +31,7 @@ var controller = addEvent(document.createElement('div'), {
   startWith: String/Array,//在不同的事件有不同的含义,快照值
   endWith: String/Array,//快照值
   ignoreGroupBlock: Boolean,//名字暂定,控制该事件在有其他group触发的时候是否触发,或者延迟触发, 这层灵活性先不提供了, 但是看了hammer的, 还是需要提供的, 通过failureWith, 灵活性比我的高
+  disableScrollWhenTrigger: Boolean, // swipe, pinch, rotate, over默认开启, 语义更好一些
 
   //triggerRegister
   start:  _start,
@@ -163,15 +164,10 @@ function listener_df (info, ctrl) { /*eslint no-unused-vars:0*/
     
     // pinch
     pinch: {
-      scale:      Number, // 同distance
+      scale:      Number, // 相对于distance开始的百分比
       startWith:  String, // 开始时的方向
       endWith:    String, // 结束时的方向
       direction:  String,
-    },
-
-    // longtap TBD
-    longtap: {
-      threshold:  Number, // 单位ms
     }
   };
 

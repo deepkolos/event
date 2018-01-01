@@ -1,4 +1,3 @@
-import Info               from './info';
 import IDGenerator        from './id-generator';
 import TimerController    from './timer-controller';
 import EventController    from './event-controller';
@@ -12,7 +11,7 @@ import {
   parse_alias,
   get_type_id,
   get_group_Id,
-  get_destance,
+  get_distance,
   config_equal,
   get_orthocenter,
   make_flat_group,
@@ -272,10 +271,11 @@ function bubblestart(evt, patch) {
     update_base_status(evt);
   }
 
-  evt_info = new Info();
-
   // 事件发生源,生成triggerlist
   update_triggerlist(evt);
+
+  // 根据group生成对应的info
+  update_event_info(evt);
 
   // 触发bubblestart
   dom_involved.forEach(function($dom){
@@ -598,8 +598,8 @@ function update_base_info () {
     }
 
     function end_helper (type) {
-      if (type_id.indexOf('swipe') === 0) {
-        if(type_id === 'swipe') {
+      if (type_id.indexOf(type) === 0) {
+        if(type_id === type) {
           base.endWith = require('./tool')[`get_${type}_direction`](
             offset_stack[type].reduce(reduce[type])
           );
@@ -685,7 +685,7 @@ function update_cache (evt) {
   cache.start_points         = get_points_from_fingers(evt.touches);
   cache.swipe_start_offset   = get_orthocenter(cache.start_points);
   cache.pinch_start_offset   = get_avg(cache.start_points.map(function(point){
-    return get_destance(point, cache.swipe_start_offset);
+    return get_distance(point, cache.swipe_start_offset);
   }));
   cache.rotate_start_offset  = get_avg(cache.start_points.map(function(point){
     return get_rotate(point, cache.swipe_start_offset);
@@ -717,6 +717,112 @@ function reset () {
   delete evt_stack.move.current;
   delete evt_stack.start.current;
   delete evt_stack.continuous.start;
+}
+
+function update_event_info (evt) {
+  var last_points    = get_points_from_fingers(evt_stack.move.last.touches);
+  var current_points = get_points_from_fingers(evt_stack.move.current.touches);
+  var last_current_deltatime = 
+    evt_stack.move.current.timeStamp - evt_stack.move.last.timeStamp;
+
+  triggerlist.forEach(function(groupId){
+    var base        = schedule.get_base_of_groupId(groupId); 
+    var base_config = schedule.get_base_config_of_groupId(groupId);
+    var type_id     = base_config.type_id;
+    var evt_info    = {
+      instant: {
+        direction: {}
+      },
+      over:     {},
+      swipe:    {},
+      pinch:    {},
+      rotate:   {},
+      velocity: {},
+    };
+    var reduce = {
+      swipe: function(sum, current){
+        return {
+          x: sum.x + current.x,
+          y: sum.y + current.y};
+      },
+      pinch:  function(sum, current){return sum + current;},
+      rotate: function(sum, current){return sum + current;}
+    };
+    var tmp, velocity_tmp;
+
+    // 生成共用的
+    evt_info.type = base.type;
+    evt_info.srcEvent = evt;
+    evt_info.pointers = evt.touches;
+    evt_info.currentTime = evt.timeStamp;
+
+    // 当前重心
+    if (
+      type_id === 'tap' ||
+      type_id.indexOf('longtap') === 0
+    ) {
+      evt_info.orthocenter = get_orthocenter(
+        get_points_from_fingers(last_arr(1, evt_stack.start.increase).touches)
+      );
+    }
+
+    if (
+      type_id.indexOf('swipe') === 0 ||
+      type_id.indexOf('pinch') === 0 ||
+      type_id.indexOf('rotate') === 0
+    ) {
+      evt_info.orthocenter = get_orthocenter(current_points);
+    }
+
+    // 生成startWith, endWith, direction
+    function general_helper (type) {
+      if (type_id.indexOf(type) === 0) {
+        evt_info[type].startWith = base.startWith;
+        evt_info[type].endWith = base.endWith;
+
+        if(type_id === type) {
+          tmp = offset_stack[type].reduce(reduce[type]);
+        } else {
+          tmp = last_arr(1, offset_stack[type]);
+        }
+        
+        velocity_tmp = require('./tool')[`get_${type}_offset`](
+          last_points,
+          current_points
+        );
+
+        evt_info[type].direction = 
+          require('./tool')[`get_${type}_direction`](tmp);
+        
+        // instant direction
+        evt_info.instant.direction[type] = 
+          require('./tool')[`get_${type}_direction`](velocity_tmp);
+
+        if (type === 'swipe') {
+          evt_info[type].x = tmp.x;
+          evt_info[type].y = tmp.y;
+          evt_info[type].distance = get_distance({x:0,y:0}, tmp);
+
+          evt_info.velocity.x = velocity_tmp.x / last_current_deltatime;
+          evt_info.velocity.y = velocity_tmp.y / last_current_deltatime;
+        } else
+        if (type === 'pinch') {
+          evt_info[type].scale = tmp;
+          evt_info.velocity.scale = velocity_tmp / last_current_deltatime;
+        } else
+        if (type === 'rotate') {
+          evt_info[type].angle = tmp;
+          evt_info.velocity.angle = velocity_tmp / last_current_deltatime;
+        }
+      }
+    }
+
+    general_helper('swipe');
+    general_helper('pinch');
+    general_helper('rotate');
+
+    schedule.group[groupId].evt_info = evt_info;
+  });
 }
 
 // update base status

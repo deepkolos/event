@@ -9,15 +9,14 @@ function Info () {
   */
 
   // event
-  this.target =       HTMLElement;
   this.type =         String; // 触发事件名字
-  this.eventType =    String; // 事件类型, 从EVENT的定义信息
-  this.srcEvent =     Event;
-  this.touches =      Array;  // 提供raw信息源
-  // 感觉需要个config的链接, TBD
+  this.srcEvent =     Event;  // bus事件
+  this.pointers =     Array;  // 提供raw信息源
 
   // general
-  this.deltaTime =    Number; // 定义为该事件的start -> end的时间戳差值
+  this.endTime =      Number; //   end的时间戳
+  this.startTime =    Number; // start的时间戳
+  this.currentTime =  Number; //  当前的时间戳
   this.orthocenter =  Object; // 当前时刻的重心
 
   // instant 相对于上一个touchmove的事件而言
@@ -26,7 +25,7 @@ function Info () {
     y:          Number, // y分量的px/ms
     distance:   Number, //  向量的px/ms
     angle:      Number,
-    scale:      Number,
+    scale:      Number, // 多值切换时候会有问题,需要避免一下
   };
 
   this.instant = {
@@ -44,7 +43,7 @@ function Info () {
     distance:   Number, // 向量的模
     startWith:  String, // 开始时的方向
     endWith:    String, // 结束时的方向
-    direction:  String, // 感觉的确不应该使用string来作为状态的标识
+    direction:  String, //   目前的方向
   };
 
   // ratate
@@ -52,7 +51,7 @@ function Info () {
     angle:      Number, // 单位弧度, 计算规则是当前各点到重心的弧度值的平均值,当没有重心的情况会有bug
     startWith:  String, // 开始时的方向
     endWith:    String, // 结束时的方向
-    direction:  String,
+    direction:  String, //   目前的方向
   };
   
   // pinch
@@ -60,12 +59,13 @@ function Info () {
     scale:      Number, // 同distance
     startWith:  String, // 开始时的方向
     endWith:    String, // 结束时的方向
-    direction:  String,
+    direction:  String, //   目前的方向
   };
 
-  // longtap TBD
-  this.longtap = {
-    threshold:  Number, // 单位ms
+  // over
+  this.over = {
+    startWith:  String, // inside, outside(left, top, right, buttom)
+    endWith:    String, // inside, outside(left, top, right, buttom)
   };
 }
 

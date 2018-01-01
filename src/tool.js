@@ -286,7 +286,7 @@ export function get_orthocenter (points) {
   };
 }
 
-export function get_destance (point_a, point_b) {
+export function get_distance (point_a, point_b) {
   return Math.sqrt(
     Math.pow(Math.abs(point_a.x - point_b.x), 2) + 
     Math.pow(Math.abs(point_a.y - point_b.y), 2)
@@ -357,7 +357,7 @@ export function get_pinch_offset (start_points, end_points, cache_start) {
   if (cache_start) {
     return 0 +
       get_avg(end_points.map(function(point){
-        return get_destance(point, end_orthocenter);
+        return get_distance(point, end_orthocenter);
       }))
       -
       cache_start;
@@ -367,11 +367,11 @@ export function get_pinch_offset (start_points, end_points, cache_start) {
 
   return 0 +
     get_avg(end_points.map(function(point){
-      return get_destance(point, end_orthocenter);
+      return get_distance(point, end_orthocenter);
     }))
     -
     get_avg(start_points.map(function(point){
-      return get_destance(point, start_orthocenter);
+      return get_distance(point, start_orthocenter);
     }));
 }
 
