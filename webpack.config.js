@@ -1,4 +1,4 @@
-const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
+// const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 
 module.exports = {
   entry: './example/index.js',
@@ -29,5 +29,11 @@ module.exports = {
   },
   plugins: [
     // new UglifyJSPlugin()
-  ]
+  ],
+  devServer: {
+    contentBase: 'example',
+    compress: true,
+    port: 1107,
+    host: '0.0.0.0'
+  }
 };
