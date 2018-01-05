@@ -35,7 +35,7 @@ import {
   TYPE_MONENT,/* eslint no-unused-vars: 0 */
   TYPE_UNKNOW,/* eslint no-unused-vars: 0 */
   TYPE_CONTINUOUS,
-  
+
   START_END_WITH,
   DEFAULT_TAP_FINGER,
   DEFAULT_LONGTAP_THRESHOLD
@@ -130,19 +130,19 @@ var timer    = new TimerController(schedule, start_bus_bubble);
 var max_group_len      = 0;
 var group_progress     = 0;
 var actived_finger_num = 0;
-var lock_dom           = -1;     // 储存锁住的dom在dom_involved的引用
+var captrue_dom        = -1;     // 储存锁住的dom在dom_involved的引用
 var triggerlist        = [];
 var dom_involved       = [];     // order from bubble start to end
 var group_gap_stack    = [];     // 储存groupid因为还有更长的group而已延迟触发的end事件
 var last_dom_involved  = [];
-var lock_status        = false;
+var capture_status     = false;
 var bubble_started     = false;
 var evt_info           = null;
 var finger_num_changed = false;
 
 var cache = {
   start_points:        null,
-  // 每次finger的时候的值, 非偏移, 比如两点pinch的半径的值,非offset,这里感觉需要改名字,
+  // 每次finger数量改变的时候的值, 非偏移, 比如两点pinch的半径的值,非offset,这里感觉需要改名字
   swipe_start_offset:  null,
   pinch_start_offset:  null,
   rotate_start_offset: null,
@@ -184,38 +184,35 @@ function bus(evt, usePatch) {
 
   if (
     (
-      // 锁的判断
-      // 如果锁了的话, 仅仅触发lock的dom,在这个次bus中
-      lock_status === true && dom_index === lock_dom 
+      // 锁的判断, 如果锁了的话, 仅仅触发lock的dom, 在这个次bus中
+      capture_status === true && dom_index === captrue_dom
     ) || (
       // 如果之前lock过, 仅仅触发index之后的
-      lock_status === false && lock_dom !== -1 && dom_index > lock_dom
+      capture_status === false && captrue_dom !== -1 && dom_index > captrue_dom
     ) || (
-      lock_status === false && lock_dom === -1
+      capture_status === false && captrue_dom === -1
     )
   ) {
     // 初始化evt_ctrl
-
     var evt_ctrl = {
-      lock:             function(){
-        lock_dom = dom_index;
-        lock_status = true;
+      capture: function(){
+        captrue_dom = dom_index;
+        capture_status = true;
       },
-      unlock:           function(){
-        lock_status = false;
+      release: function(){
+        capture_status = false;
       },
-      preventDefault:   function(){
+      preventDefault: function(){
         evt.preventDefault();
       },
-      stopPropagation:  function(){
+      stopPropagation: function(){
         evt.stopPropagation();
         bubble_started = false;
         bubbleend(evt);
       },
     };
 
-    // 消化triggerlist
-    // 这里的循环可以优化
+    // 消化triggerlist, 这里的循环可以优化
     triggerlist.forEach(function (groupId) {
       // triggerlist仅仅包含gourp了
       var grouplist = $dom.__event.list[ON_FINGER];
@@ -247,8 +244,8 @@ function bus(evt, usePatch) {
   }
 
   if (
-    bubble_started === true && 
-    $dom === last_dom_involved && 
+    bubble_started === true &&
+    $dom === last_dom_involved &&
     usePatch !== true
   ) {
     //不过一般一个bubble的执行时间不会那么长的,不过如果使用了模版编译之类的,就有可能很长时间,
@@ -262,7 +259,7 @@ function bubblestart(evt, patch) {
   var need_trigger_groupstart = false;
 
   triggerlist = [];
-  
+
   schedule.empty_updated_base();
   //更新基事件的
   if (patch instanceof Function) {
@@ -333,7 +330,7 @@ function bubbleend(evt, patch) {
       }
     }
   });
-  
+
   // 触发groupend
   need_trigger_groupend &&
   dom_involved.forEach(function($dom){
@@ -375,8 +372,8 @@ function groupstart(evt) {
   //需要判断是否需要重新生成group
   if (group_progress === 0) {
     schedule.empty_group();
-    lock_dom    = -1;
-    lock_status = false;
+    captrue_dom    = -1;
+    capture_status = false;
   }
 
   if(group_progress === 0) console.log('进度重置了');
@@ -397,7 +394,7 @@ function groupstart(evt) {
         base = schedule.group[id].group[group_progress];
         //基事件使用type->的映射就可以了,细微的状态更新方便
         schedule.write_base(base);
-        base.when !== undefined && 
+        base.when !== undefined &&
           schedule.write_base(base.when);
       }
     }
@@ -515,7 +512,7 @@ function update_triggerlist(evt) {
       if (
         // startWith
         (
-          base.status <= STATUS.start && 
+          base.status <= STATUS.start &&
           !config_equal(base.startWith, base_config.startWith)
         ) ||
         // endWith
@@ -525,14 +522,14 @@ function update_triggerlist(evt) {
         ) ||
         // when
         (
-          base_config.when instanceof Object && 
+          base_config.when instanceof Object &&
           test_when(base_config.when)
         ) || (
-          base_config.when instanceof Array && 
+          base_config.when instanceof Array &&
           base_config.when.every(test_when)
         )
       ) {
-        
+
         if(group.status === STATUS.start || group.status === STATUS.move) {
           group.status = STATUS.cancel;
         }
@@ -546,7 +543,7 @@ function update_triggerlist(evt) {
         base_config.finger === get_current_finger(base, base_config, evt) || //longtap的自定义触发引用需要更换
         base_config.finger === undefined
       ) {
-        
+
         //目前给设置了finger的continuous直接通过触发就好的了,感觉设计有问题,group_gap的问题
         if (EVENT[base_config.type].type === TYPE_CONTINUOUS && base_config === undefined) {
 
@@ -558,7 +555,7 @@ function update_triggerlist(evt) {
               // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
               // get_type_id绝对有问题, 不应该这么频繁出现的
               var base_status = schedule.base[group.group[group_progress].type_id].status;
-    
+
               return (
                 base_status === STATUS.start ||
                 base_status === STATUS.move ||
@@ -589,7 +586,7 @@ function update_base_info () {
       },
       pinch:  function(sum, current){return sum + current;},
       rotate: function(sum, current){return sum + current;}
-    }; 
+    };
 
     function start_helper (type) {
       if (type_id.indexOf(type) === 0) {
@@ -622,8 +619,8 @@ function update_base_info () {
       start_helper('swipe');
       start_helper('pinch');
       start_helper('rotate');
-    } else 
-    
+    } else
+
     if (base.status === STATUS.move || base.status === STATUS.start) {
       // continuous offset 更新栈顶的数据
       if (
@@ -631,7 +628,7 @@ function update_base_info () {
         type_id.indexOf('pinch') === 0 ||
         type_id.indexOf('rotate') === 0
       ) {
-        offset[offset.length-1] = 
+        offset[offset.length-1] =
           require('./tool')[`get_${type_id}_offset`](
             cache.start_points,
             get_points_from_fingers(evt_stack.move.current.touches),
@@ -675,7 +672,7 @@ function get_current_finger(base, base_config, evt) {
 
   // finger设置的end一般都是直接放行
   if (
-    EVENT[base_config.type].type === TYPE_CONTINUOUS && 
+    EVENT[base_config.type].type === TYPE_CONTINUOUS &&
     base_config.finger !== undefined &&
     base.status === STATUS.end
   ) {
@@ -746,11 +743,11 @@ function reset () {
 function update_event_info (evt) {
   var last_points    = get_points_from_fingers(evt_stack.move.last.touches);
   var current_points = get_points_from_fingers(evt_stack.move.current.touches);
-  var last_current_deltatime = 
+  var last_current_deltatime =
     evt_stack.move.current.timeStamp - evt_stack.move.last.timeStamp;
 
   triggerlist.forEach(function(groupId){
-    var base        = schedule.get_base_of_groupId(groupId); 
+    var base        = schedule.get_base_of_groupId(groupId);
     var base_config = schedule.get_base_config_of_groupId(groupId);
     var type_id     = base_config.type_id;
     var evt_info    = {
@@ -778,7 +775,7 @@ function update_event_info (evt) {
     evt_info.type = base.type;
     evt_info.srcEvent = evt;
     evt_info.pointers = evt.touches;
-    evt_info.currentTime = evt.timeStamp;
+    evt_info.timeStamp = evt.timeStamp;
 
     // 当前重心
     if (
@@ -809,17 +806,17 @@ function update_event_info (evt) {
         } else {
           tmp = last_arr(1, offset_stack[type]);
         }
-        
+
         velocity_tmp = require('./tool')[`get_${type}_offset`](
           last_points,
           current_points
         );
 
-        evt_info[type].direction = 
+        evt_info[type].direction =
           require('./tool')[`get_${type}_direction`](tmp);
-        
+
         // instant direction
-        evt_info.instant.direction[type] = 
+        evt_info.instant.direction[type] =
           require('./tool')[`get_${type}_direction`](velocity_tmp);
 
         if (type === 'swipe') {
@@ -838,7 +835,7 @@ function update_event_info (evt) {
           evt_info.velocity.scale = type_id === type
             ? plus_divide(velocity_tmp, cache[`${type}_first_offset`])
             : plus_divide(velocity_tmp, cache[`${type}_start_offset`]);
-            
+
           evt_info.velocity.scale /= last_current_deltatime;
         } else
         if (type === 'rotate') {
@@ -846,7 +843,7 @@ function update_event_info (evt) {
           evt_info.velocity.angle = type_id === type
             ? plus_divide(velocity_tmp, cache[`${type}_first_offset`])
             : plus_divide(velocity_tmp, cache[`${type}_start_offset`]);
-          
+
           evt_info.velocity.angle /= last_current_deltatime;
         }
       }
