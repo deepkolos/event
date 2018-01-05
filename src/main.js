@@ -282,12 +282,13 @@ function bubblestart(evt, patch) {
 
   // 触发bubblestart
   dom_involved.forEach(function($dom){
-    var bubbleEvent = $dom.__event[ON_EVENT].bubbleEvent;
+    var bubbleEvent = $dom.__event.list[ON_EVENT].bubbleEvent;
 
     if (bubbleEvent) {
       for (var id in bubbleEvent) {
         bubbleEvent[id].config.start instanceof Function &&
-          bubbleEvent[id].config.start.call($dom);
+          !bubbleEvent[id].config.disable &&
+            bubbleEvent[id].config.start.call($dom);
       }
     }
   });
@@ -295,12 +296,13 @@ function bubblestart(evt, patch) {
   // 触发groupstart
   need_trigger_groupstart &&
   dom_involved.forEach(function($dom){
-    var groupEvent = $dom.__event[ON_EVENT].groupEvent;
+    var groupEvent = $dom.__event.list[ON_EVENT].groupEvent;
 
     if (groupEvent) {
       for (var id in groupEvent) {
         groupEvent[id].config.start instanceof Function &&
-          groupEvent[id].config.start.call($dom);
+          !groupEvent[id].config.disable &&
+            groupEvent[id].config.start.call($dom);
       }
     }
   });
@@ -321,12 +323,13 @@ function bubbleend(evt, patch) {
 
   // 触发bubbleend
   dom_involved.forEach(function($dom){
-    var bubbleEvent = $dom.__event[ON_EVENT].bubbleEvent;
+    var bubbleEvent = $dom.__event.list[ON_EVENT].bubbleEvent;
 
     if (bubbleEvent) {
       for (var id in bubbleEvent) {
         bubbleEvent[id].config.end instanceof Function &&
-          bubbleEvent[id].config.end.call($dom);
+          !bubbleEvent[id].config.disable &&
+            bubbleEvent[id].config.end.call($dom);
       }
     }
   });
@@ -334,12 +337,13 @@ function bubbleend(evt, patch) {
   // 触发groupend
   need_trigger_groupend &&
   dom_involved.forEach(function($dom){
-    var groupEvent = $dom.__event[ON_EVENT].groupEvent;
+    var groupEvent = $dom.__event.list[ON_EVENT].groupEvent;
 
     if (groupEvent) {
       for (var id in groupEvent) {
         groupEvent[id].config.end instanceof Function &&
-          groupEvent[id].config.end.call($dom);
+          !groupEvent[id].config.disable &&
+            groupEvent[id].config.end.call($dom);
       }
     }
   });
@@ -741,10 +745,7 @@ function reset () {
 }
 
 function update_event_info (evt) {
-  var last_points    = get_points_from_fingers(evt_stack.move.last.touches);
-  var current_points = get_points_from_fingers(evt_stack.move.current.touches);
-  var last_current_deltatime =
-    evt_stack.move.current.timeStamp - evt_stack.move.last.timeStamp;
+  var last_points, current_points, last_current_deltatime;
 
   triggerlist.forEach(function(groupId){
     var base        = schedule.get_base_of_groupId(groupId);
@@ -792,6 +793,13 @@ function update_event_info (evt) {
       type_id.indexOf('pinch') === 0 ||
       type_id.indexOf('rotate') === 0
     ) {
+      last_points = last_points ||
+        get_points_from_fingers(evt_stack.move.last.touches);
+      current_points = current_points ||
+         get_points_from_fingers(evt_stack.move.current.touches);
+      last_current_deltatime = last_current_deltatime ||
+         evt_stack.move.current.timeStamp - evt_stack.move.last.timeStamp;
+
       evt_info.orthocenter = get_orthocenter(current_points);
     }
 

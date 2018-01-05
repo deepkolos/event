@@ -1,4 +1,4 @@
-import { 
+import {
   EVENT,
   STATUS,
   START_END_WITH,
@@ -181,7 +181,7 @@ function explode_with_string (string, evt_type){
       break;
     }
   }
-  
+
   return result;
 }
 
@@ -202,7 +202,7 @@ export function init_when (config){
     config.when.type_id = get_type_id(config.when);
 
     if (
-      config.when.longtapThreshold === undefined && 
+      config.when.longtapThreshold === undefined &&
       config.when.type === 'longtap'
     ) {
       config.when.longtapThreshold = DEFAULT_LONGTAP_THRESHOLD;
@@ -231,9 +231,10 @@ export function init_when (config){
 }
 
 export function clean_arr (arr) {
-  for (var i = 0, len = arr.length; i < len; i++) {
-    delete arr[i];
-  }
+  if (arr)
+    for (var i = 0, len = arr.length; i < len; i++) {
+      delete arr[i];
+    }
 }
 
 export function get_orthocenter (points) {
@@ -249,7 +250,7 @@ export function get_orthocenter (points) {
     console.log('没有手指~');
     return {x: 0, y: 0};
   } else
-  
+
   // 1根手指
   if (len === 0) {
     return points[0];
@@ -288,7 +289,7 @@ export function get_orthocenter (points) {
 
 export function get_distance (point_a, point_b) {
   return Math.sqrt(
-    Math.pow(Math.abs(point_a.x - point_b.x), 2) + 
+    Math.pow(Math.abs(point_a.x - point_b.x), 2) +
     Math.pow(Math.abs(point_a.y - point_b.y), 2)
   );
 }
@@ -352,7 +353,7 @@ export function get_swipe_offset (start_points, end_points, cache_start) {
 
 export function get_pinch_offset (start_points, end_points, cache_start) {
   var end_orthocenter   = get_orthocenter(end_points);
-  
+
   // 缓存不该这样做的, 感觉需要改, 虽然绝对那样封装成函数粒度太小了
   if (cache_start) {
     return 0 +
@@ -362,7 +363,7 @@ export function get_pinch_offset (start_points, end_points, cache_start) {
       -
       cache_start;
   }
-  
+
   var start_orthocenter = get_orthocenter(start_points);
 
   return 0 +

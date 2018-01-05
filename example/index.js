@@ -67,15 +67,15 @@ document.addEventListener("DOMContentLoaded", function() {
     end:       function(){console.log('foo swipe end');},
     start:     function(){console.log('foo swipe start');},
     cancel:    function(){console.log('foo swipe cancel');},
-    move: function(info, lock, unlock){
+    move: function(info, ctrl){
       console.log('foo swipe move');
       if (count === 51) {
-        lock();
+        ctrl.capture();
         console.log('lock to foo');
       }
 
       if (count === 100) {
-        unlock();
+        ctrl.release();
         console.log('unlock from foo');
       }
 
@@ -98,19 +98,41 @@ document.addEventListener("DOMContentLoaded", function() {
     end:       function(){console.log('bar swipe end');},
     start:     function(){console.log('bar swipe start');count=0;},
     cancel:    function(){console.log('bar swipe cancel');},
-    move: function(info, lock, unlock){
+    move: function(info, ctrl){
       console.log('bar swipe move');
       if (count === 0) {
-        lock();
+        ctrl.capture();
         console.log('lock to bar');
       }
 
       if (count === 50) {
-        unlock();
+        ctrl.release();
         console.log('unlock from bar');
       }
 
       count++;
     },
   });
+
+  var groupCtrl = addEvent($box, {
+    type:      'groupEvent',
+
+    end:       function(){console.log('groupEvent end');},
+    move:      function(){console.log('groupEvent move');},
+    start:     function(){console.log('groupEvent start');},
+    cancel:    function(){console.log('groupEvent cancel');},
+  });
+
+  groupCtrl.disable();
+
+  var bubbleCtrl = addEvent($box, {
+    type:      'bubbleEvent',
+
+    end:       function(){console.log('bubbleEvent end');},
+    move:      function(){console.log('bubbleEvent move');},
+    start:     function(){console.log('bubbleEvent start');},
+    cancel:    function(){console.log('bubbleEvent cancel');},
+  });
+
+  bubbleCtrl.disable();
 });

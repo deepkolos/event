@@ -86,7 +86,7 @@ const EVENT = {
 export {
   EVENT,
   STATUS,
-  
+
   ON_DOM,
   ON_EVENT,
   ON_FINGER,
