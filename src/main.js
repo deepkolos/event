@@ -138,6 +138,7 @@ var last_dom_involved  = [];
 var lock_status        = false;
 var bubble_started     = false;
 var evt_info           = null;
+var finger_num_changed = false;
 
 var cache = {
   start_points:        null,
@@ -162,8 +163,7 @@ var evt_stack = {
   },
   continuous: {
     start:    null
-  },
-  end: []
+  }
 };
 
 var offset_stack = {
@@ -687,7 +687,7 @@ function get_current_finger(base, base_config, evt) {
 
 function update_cache (evt) {
   // continuous offset 每次点击都会压栈, finger数目变更都会用新的记录
-  evt_stack.move.current     = null;
+  finger_num_changed         = true;
   evt_stack.continuous.start = evt;
   cache.start_points         = get_points_from_fingers(evt.touches);
   cache.swipe_start_offset   = get_orthocenter(cache.start_points);
@@ -697,6 +697,7 @@ function update_cache (evt) {
   cache.rotate_start_offset  = get_avg(cache.start_points.map(function(point){
     return get_rotate(point, cache.swipe_start_offset);
   })) - (Math.PI/cache.start_points.length);
+
   offset_stack.swipe.push({x: 0, y: 0});
 
   if (offset_stack.swipe.length === 0) {
@@ -918,7 +919,7 @@ function touchmove(evt) {
   timer.stop('longtap');
   schedule.set_base('longtap', STATUS.cancel);
 
-  evt_stack.move.last = evt_stack.move.current
+  evt_stack.move.last = evt_stack.move.current && !finger_num_changed
                       ? evt_stack.move.current
                       : last_arr(1, evt_stack.start.increase);
 
@@ -934,6 +935,8 @@ function touchmove(evt) {
     schedule.set_base(`rotate_${touch_num}`, STATUS.move);
     schedule.set_base(`rotate_${touch_num}`, STATUS.start);
   }
+
+  finger_num_changed = false;
 }
 
 function touchend(evt) {
