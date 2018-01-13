@@ -34,6 +34,8 @@ module.exports = {
     contentBase: 'example',
     compress: true,
     port: 1107,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    disableHostCheck: true,
+    public:'0.0.0.0:1107'
   }
 };

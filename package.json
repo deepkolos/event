@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo 0",
-    "dev": "webpack-dev-server --public --disable-host-check"
+    "dev": "webpack-dev-server"
   },
   "repository": {
     "type": "git",
