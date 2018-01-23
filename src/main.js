@@ -32,14 +32,15 @@ import {
   ON_EVENT,
   ON_FINGER,
 
-  TYPE_MONENT,/* eslint no-unused-vars: 0 */
-  TYPE_UNKNOW,/* eslint no-unused-vars: 0 */
+  TYPE_MONENT,
+  TYPE_UNKNOW,
   TYPE_CONTINUOUS,
 
+  TAP_THRESHOLD,
   START_END_WITH,
   DEFAULT_TAP_FINGER,
   DEFAULT_LONGTAP_THRESHOLD
-} from './define';
+} from './define';/* eslint no-unused-vars: 0 */
 
 // 对外接口
 function addEvent($dom, config = {}) {
@@ -638,6 +639,7 @@ function update_base_info () {
         type_id.indexOf('pinch') === 0 ||
         type_id.indexOf('rotate') === 0
       ) {
+        // 这里应该会有问题
         offset[offset.length-1] =
           require('./tool')[`get_${type_id}_offset`](
             cache.start_points,
@@ -919,22 +921,36 @@ function touchstart(evt) {
 
 function touchmove(evt) {
   var touch_num = evt.touches.length;
-  console.log('moved');
-  schedule.set_base('tap', STATUS.cancel);
-  schedule.set_base('swipe', STATUS.move);
-  schedule.set_base('swipe', STATUS.start);
-  schedule.set_base(`swipe_${touch_num}`, STATUS.move);
-  schedule.set_base(`swipe_${touch_num}`, STATUS.start);
-  // 将会在start里面补一帧的move
-
-  timer.stop('longtap');
-  schedule.set_base('longtap', STATUS.cancel);
+  var movedOffset;
 
   evt_stack.move.last = evt_stack.move.current && !finger_num_changed
                       ? evt_stack.move.current
                       : last_arr(1, evt_stack.start.increase);
 
   evt_stack.move.current = evt;
+
+  movedOffset = get_distance(
+    get_swipe_offset(
+      cache.start_points,
+      get_points_from_fingers(evt_stack.move.current.touches),
+      cache.swipe_start_offset
+    ), {x: 0, y: 0});
+
+  console.log('moved:' + movedOffset);
+
+  if (movedOffset > 1)
+    schedule.set_base('tap', STATUS.cancel);
+
+  if (movedOffset > 9) {
+    timer.stop('longtap');
+    schedule.set_base('longtap', STATUS.cancel);
+  }
+
+  schedule.set_base('swipe', STATUS.move);
+  schedule.set_base('swipe', STATUS.start);
+  schedule.set_base(`swipe_${touch_num}`, STATUS.move);
+  schedule.set_base(`swipe_${touch_num}`, STATUS.start);
+  // 将会在start里面补一帧的move
 
   if (evt.touches.length > 1) {
     schedule.set_base('pinch', STATUS.move);

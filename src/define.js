@@ -1,7 +1,8 @@
 import { Type } from './tool';
 
-const DEFAULT_LONGTAP_THRESHOLD = 700;
+const DEFAULT_LONGTAP_THRESHOLD = 300;
 const DEFAULT_TAP_FINGER        = 1;
+const TAP_THRESHOLD             = 1.8;
 
 const TYPE_MONENT      = 0;
 const TYPE_CONTINUOUS  = 1;
@@ -97,6 +98,7 @@ export {
 
   START_END_WITH,
 
+  TAP_THRESHOLD,
   DEFAULT_TAP_FINGER,
   DEFAULT_LONGTAP_THRESHOLD
 };
