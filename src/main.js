@@ -258,8 +258,6 @@ function bus(evt, usePatch) {
 function bubblestart(evt, patch) {
   var need_trigger_groupstart = false;
 
-  triggerlist = [];
-
   schedule.empty_updated_base();
   //更新基事件的
   if (patch instanceof Function) {
@@ -273,6 +271,8 @@ function bubblestart(evt, patch) {
     }
     update_base_status(evt);
   }
+
+  triggerlist = [];
 
   // 事件发生源,生成triggerlist
   update_triggerlist(evt);
@@ -430,13 +430,13 @@ function group_gap_trigger() {
 
 // 工具函数, 不过不太适合拆分到tool里面
 function start_bus_bubble(evt, startPatch, endPatch, triggerListPatch) {
-  // debugger;
+  var isPatch = startPatch !== undefined || endPatch !== undefined;
   bubblestart(evt, startPatch);
 
   triggerListPatch instanceof Function && triggerListPatch();
 
   dom_involved.forEach(function ($dom) {
-    $dom.__event.bus(evt, startPatch !== undefined || endPatch !== undefined);
+    $dom.__event.bus(evt, isPatch);
   });
 
   bubbleend(evt, endPatch);
@@ -468,6 +468,7 @@ function update_triggerlist(evt) {
   max_group_len          = group_progress;
   var longer_groups      = [];
   var groupid_in_process = [];
+  var fingerCheck        = false;
   var tmp_len, group, base, base_config;
 
   // 找出max_group_len, 可以在groupstart的时候生成, 不过还是可以的
@@ -512,6 +513,12 @@ function update_triggerlist(evt) {
       if (base.status === STATUS.init)
         return;
 
+      if (window._debug_) debugger;
+
+      // finger
+      fingerCheck = base_config.finger !== undefined
+        ? base_config.finger === get_current_finger(base, base_config, evt) 
+        : true;
       // 需要处理when, startWith, endWith, finger
       if (
         // startWith
@@ -534,19 +541,18 @@ function update_triggerlist(evt) {
         )
       ) {
 
-        if(group.status === STATUS.start || group.status === STATUS.move) {
-          group.status = STATUS.cancel;
-        }
+        if (
+          fingerCheck && (
+            group.status === STATUS.start || 
+            group.status === STATUS.move
+          )
+        ) group.status = STATUS.cancel;
 
-      } else {
+      } else if (fingerCheck) {
         group.status = base.status;
       }
 
-      if (
-        base_config.finger !== undefined &&
-        base_config.finger === get_current_finger(base, base_config, evt) || //longtap的自定义触发引用需要更换
-        base_config.finger === undefined
-      ) {
+      if (fingerCheck) {
 
         //目前给设置了finger的continuous直接通过触发就好的了,感觉设计有问题,group_gap的问题
         if (EVENT[base_config.type].type === TYPE_CONTINUOUS && base_config === undefined) {
@@ -872,14 +878,13 @@ function touchstart(evt) {
   var last_actived_finger_num = actived_finger_num;
   // 更新finger信息
   actived_finger_num = Math.max(actived_finger_num, touch_num);
-
+  
   if (actived_finger_num > last_actived_finger_num) {
-    evt_stack.start.increase.push(evt);
     // 使用最先手指变更的时候就好了
     // 这样允许1->2 也可以兼容1->3的情况
-    if (evt_stack.start.increase.length > 1) {
+    if (evt_stack.start.increase.length+1 > 1) {
       start_bus_bubble(
-        last_arr(2, evt_stack.start.increase),
+        last_arr(1, evt_stack.start.increase),
         function () {// start patch
           schedule.set_base('tap',     STATUS.cancel);
           schedule.set_base('longtap', STATUS.cancel);
@@ -891,6 +896,7 @@ function touchstart(evt) {
       );
     }
 
+    evt_stack.start.increase.push(evt);
     // 更新tap status->start, 这个是使用现有的tap的longtapThreshold来区别的所以是没有
     // 这一层是源触发的bus
     schedule.set_base('tap', STATUS.start);
@@ -913,7 +919,7 @@ function touchstart(evt) {
 
 function touchmove(evt) {
   var touch_num = evt.touches.length;
-
+  console.log('moved');
   schedule.set_base('tap', STATUS.cancel);
   schedule.set_base('swipe', STATUS.move);
   schedule.set_base('swipe', STATUS.start);
@@ -950,6 +956,7 @@ function touchend(evt) {
   if (touch_num === 0) {
     schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);
+    // debugger;
   } else {
     update_cache(evt);
   }

@@ -6,6 +6,28 @@ document.addEventListener("DOMContentLoaded", function() {
   var $bar  = document.querySelector('#bar');
   var count = 0;
 
+  
+  addEvent($box, {
+    type:      'tap',
+    finger:    1,
+
+    end:       function(){console.log('tap 1 finger end');},
+    move:      function(){console.log('tap 1 finger move');},
+    start:     function(){console.log('tap 1 finger start');},
+    cancel:    function(){console.log('tap 1 finger cancel');},
+  });
+
+  addEvent($box, {
+    type:      'tap',
+    finger:    2,
+
+    end:       function(){console.log('tap 2 finger end');},
+    move:      function(){console.log('tap 2 finger move');},
+    start:     function(){console.log('tap 2 finger start');},
+    cancel:    function(){console.log('tap 2 finger cancel');},
+  });
+
+  // 测试removeEvent
   var swipeCtrl = addEvent($box, {
     type:      'swipe',
 
@@ -51,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function() {
     move:      function(){console.log('longtap move');},
     start:     function(){console.log('longtap start');},
     cancel:    function(){console.log('longtap cancel');},
-  });
+  }).removeEvent();
 
   addEvent($foo, {
     type:      'swipe',
