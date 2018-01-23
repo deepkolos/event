@@ -37,6 +37,8 @@ import {
   TYPE_CONTINUOUS,
 
   TAP_THRESHOLD,
+  PRESS_THRESHOLD,
+
   START_END_WITH,
   DEFAULT_TAP_FINGER,
   DEFAULT_LONGTAP_THRESHOLD
@@ -231,6 +233,7 @@ function bus(evt, usePatch) {
             );
 
             // start补一帧move, TYPE_CONTINUOUS的事件
+            group.group[group_progress] &&
             EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
             group.status === STATUS.start &&
             info.config.move instanceof Function &&
@@ -407,7 +410,7 @@ function groupstart(evt) {
 }
 
 function groupend(evt) {
-  if (schedule.commit_to_group(group_progress)) {
+  if (schedule.commit_to_group(group_progress, actived_finger_num)) {
     group_progress++;
     timer.start('group_gap');
   } else {
@@ -514,8 +517,6 @@ function update_triggerlist(evt) {
       if (base.status === STATUS.init)
         return;
 
-      if (window._debug_) debugger;
-
       // finger
       fingerCheck = base_config.finger !== undefined
         ? base_config.finger === get_current_finger(base, base_config, evt) 
@@ -554,11 +555,10 @@ function update_triggerlist(evt) {
       }
 
       if (fingerCheck) {
-
         //目前给设置了finger的continuous直接通过触发就好的了,感觉设计有问题,group_gap的问题
-        if (EVENT[base_config.type].type === TYPE_CONTINUOUS && base_config === undefined) {
-
-          // if (group.status === EVENT_STATUS.end) debugger;
+        //if (EVENT[base_config.type].type === TYPE_CONTINUOUS && base_config === undefined) {
+        if (fingerCheck) {
+          // if (group.status === STATUS.end) debugger;
           // 需要查看是否有更长的group, 是否还有机会触发
           if (group_progress < max_group_len && group.status === STATUS.end) {
             // 把这次的触发压到堆栈里面去
@@ -938,10 +938,10 @@ function touchmove(evt) {
 
   console.log('moved:' + movedOffset);
 
-  if (movedOffset > 1)
+  if (movedOffset > TAP_THRESHOLD)
     schedule.set_base('tap', STATUS.cancel);
 
-  if (movedOffset > 9) {
+  if (movedOffset > PRESS_THRESHOLD) {
     timer.stop('longtap');
     schedule.set_base('longtap', STATUS.cancel);
   }
@@ -972,7 +972,6 @@ function touchend(evt) {
   if (touch_num === 0) {
     schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);
-    // debugger;
   } else {
     update_cache(evt);
   }

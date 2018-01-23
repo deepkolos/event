@@ -68,18 +68,25 @@ ScheduleController.prototype.set_base = function(type, set_status){
   }
 };
 
-ScheduleController.prototype.commit_to_group = function(current_process){
+ScheduleController.prototype.commit_to_group = function(current_process, actived_finger_num){
   var need_to_commit = false;
+  
   for(var gourpid in this.group) {
     let group = this.group[gourpid];
+    let base_config = group.group[current_process];
+
     if (
       group.status === current_process &&
       current_process < group.group.length - 1 &&
       this.base[group.group[current_process].type_id].status === STATUS.end
     ) {
+      // 打补丁了, 唉
+      if (base_config.type === 'tap' || base_config.type === 'longtap')
+        if (base_config.finger !== actived_finger_num)
+          continue;
+
       group.status++;
       need_to_commit = true;
-      
     }
   }
   return need_to_commit;

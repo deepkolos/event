@@ -27,6 +27,16 @@ document.addEventListener("DOMContentLoaded", function() {
     cancel:    function(){console.log('tap 2 finger cancel');},
   });
 
+  addEvent($box, {
+    type:      'tap',
+    finger:    3,
+
+    end:       function(){console.log('tap 3 finger end');},
+    move:      function(){console.log('tap 3 finger move');},
+    start:     function(){console.log('tap 3 finger start');},
+    cancel:    function(){console.log('tap 3 finger cancel');},
+  });
+
   // 测试removeEvent
   var swipeCtrl = addEvent($box, {
     type:      'swipe',
