@@ -564,13 +564,20 @@ function update_triggerlist(evt) {
             // 把这次的触发压到堆栈里面去
             if (longer_groups.some(function(group){
               // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
-              // get_type_id绝对有问题, 不应该这么频繁出现的
               var base_status = schedule.base[group.group[group_progress].type_id].status;
 
               return (
-                base_status === STATUS.start ||
-                base_status === STATUS.move ||
-                base_status === STATUS.end
+                (
+                  group.group[group_progress].type === 'tap' ||
+                  group.group[group_progress].type === 'longtap'
+                ) ? group.group[group_progress].finger === actived_finger_num
+                  : true
+
+                && (
+                  base_status === STATUS.start ||
+                  base_status === STATUS.move ||
+                  base_status === STATUS.end
+                )
               );
             })) {
               group_gap_stack.push(groupId);
@@ -972,6 +979,7 @@ function touchend(evt) {
   if (touch_num === 0) {
     schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);
+    // debugger;
   } else {
     update_cache(evt);
   }
