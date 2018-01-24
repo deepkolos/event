@@ -115,6 +115,9 @@ export function get_type_id(config) {
   if (type === 'longtap')
     return type + '_' + config.longtapThreshold;
 
+  if (EVENT[type].type === TYPE_CONTINUOUS && config.finger !== undefined)
+    return type + '_' + config.finger;
+
   return type;
 }
 
@@ -141,7 +144,9 @@ export function config_equal (current, setting) {
   if (setting instanceof Array) {
     return setting.includes(current);
   } else if(setting instanceof Object === false) {
-    return current === setting;
+    return setting !== undefined 
+            ? current === setting
+            : true;
   }
 }
 

@@ -179,11 +179,17 @@ var offset_stack = {
 function bus(evt, usePatch) {
   var $dom = this;
   var dom_index = $dom.__event._tmp_index;
+  var evt_ctrl;
 
   if (bubble_started === false && usePatch !== true) {
     bubble_started = true;
     bubblestart(evt);
   }
+
+  if (
+    $dom.getAttribute('id') === 'bar' &&
+    window.touches_num_2
+  ) debugger;
 
   if (
     (
@@ -197,10 +203,13 @@ function bus(evt, usePatch) {
     )
   ) {
     // 初始化evt_ctrl
-    var evt_ctrl = {
-      capture: function(){
-        captrue_dom = dom_index;
-        capture_status = true;
+    evt_ctrl = {
+      capture: function(triggerStart){
+        // 因为不是手势是path上面同一的, 不针对单独节点, 所以提供设置单独实现start和cancel的触发
+        if (captrue_dom !== dom_index) {
+          captrue_dom = dom_index;
+          capture_status = true;
+        }
       },
       release: function(){
         capture_status = false;
@@ -227,20 +236,17 @@ function bus(evt, usePatch) {
           let listener = info.config[STATUS[group.status]];
 
           if (info.config.disable !== true) {
-            listener instanceof Function && listener.call($dom,
-              evt_info,
-              evt_ctrl
-            );
+            listener instanceof Function && 
+              listener.call(
+                $dom, evt_info, evt_ctrl);
 
             // start补一帧move, TYPE_CONTINUOUS的事件
             group.group[group_progress] &&
             EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
             group.status === STATUS.start &&
             info.config.move instanceof Function &&
-              info.config.move.call($dom,
-                evt_info,
-                evt_ctrl
-              );
+              info.config.move.call(
+                $dom, evt_info, evt_ctrl);
           }
         }
       }
@@ -504,7 +510,7 @@ function update_triggerlist(evt) {
   // 更新triggerList,问题,在进度的状态不一定是这次bubble里修改的
   groupid_in_process.forEach(function (groupId) {
     group = schedule.group[groupId];
-
+    var tmp;
     // 同步base的状态到group里面
     if (
       group.status === group.group.length - 1 ||
@@ -517,10 +523,20 @@ function update_triggerlist(evt) {
       if (base.status === STATUS.init)
         return;
 
-      // finger
-      fingerCheck = base_config.finger !== undefined
-        ? base_config.finger === get_current_finger(base, base_config, evt) 
-        : true;
+      // if (
+      //   window.__debug && 
+      //   groupId === 'swipe[finger=2,startWith=undefined,endWith=undefined]{}'
+      // ) debugger;
+
+      tmp = !config_equal(base.startWith, base_config.startWith);
+
+      // fingerCheck
+      if (!(
+        base_config.finger !== undefined
+          ? base_config.finger === get_current_finger(base, base_config, evt) 
+          : true
+      )) return;
+
       // 需要处理when, startWith, endWith, finger
       if (
         // startWith
@@ -544,57 +560,47 @@ function update_triggerlist(evt) {
       ) {
 
         if (
-          fingerCheck && (
-            group.status === STATUS.start || 
-            group.status === STATUS.move
-          )
+          group.status === STATUS.start || 
+          group.status === STATUS.move
         ) group.status = STATUS.cancel;
 
-      } else if (fingerCheck) {
+      } else {
         group.status = base.status;
       }
 
-      if (fingerCheck) {
-        //目前给设置了finger的continuous直接通过触发就好的了,感觉设计有问题,group_gap的问题
-        //if (EVENT[base_config.type].type === TYPE_CONTINUOUS && base_config === undefined) {
-        if (fingerCheck) {
-          // if (group.status === STATUS.end) debugger;
-          // 需要查看是否有更长的group, 是否还有机会触发
-          if (group_progress < max_group_len && group.status === STATUS.end) {
-            // 把这次的触发压到堆栈里面去
-            if (longer_groups.some(function(group){
-              // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
-              var base_status = schedule.base[group.group[group_progress].type_id].status;
+      // 需要查看是否有更长的group, 是否还有机会触发
+      if (group_progress < max_group_len && group.status === STATUS.end) {
+        // 把这次的触发压到堆栈里面去
+        if (longer_groups.some(function(group){
+          // 相当于是提前检查一下了, 的确感觉会比较慢的感觉, 唉
+          var base_status = schedule.base[group.group[group_progress].type_id].status;
 
-              return (
-                (
-                  group.group[group_progress].type === 'tap' ||
-                  group.group[group_progress].type === 'longtap'
-                ) ? group.group[group_progress].finger === actived_finger_num
-                  : true
-
-                && (
-                  base_status === STATUS.start ||
-                  base_status === STATUS.move ||
-                  base_status === STATUS.end
-                )
-              );
-            })) {
-              group_gap_stack.push(groupId);
-              return;
-            }
-          }
+          return (
+            base_status === STATUS.start ||
+            base_status === STATUS.move ||
+            base_status === STATUS.end
+          ) && (
+            (
+              group.group[group_progress].type === 'tap' ||
+              group.group[group_progress].type === 'longtap'
+            ) ? group.group[group_progress].finger === actived_finger_num
+              : true
+          );
+        })) {
+          group_gap_stack.push(groupId);
+          return;
         }
-
-        triggerlist.push(groupId);
       }
+
+      triggerlist.push(groupId);
     }
   });
 }
 
 function update_base_info () {
   schedule.updated_base.forEach(function(type_id){
-    var offset = offset_stack[type_id.split('_')[0]];
+    var type   = type_id.split('_')[0];
+    var offset = offset_stack[type];
     var base   = schedule.base[type_id];
     var reduce = {
       swipe: function(sum, current){
@@ -642,16 +648,15 @@ function update_base_info () {
     if (base.status === STATUS.move || base.status === STATUS.start) {
       // continuous offset 更新栈顶的数据
       if (
-        type_id.indexOf('swipe') === 0 ||
-        type_id.indexOf('pinch') === 0 ||
-        type_id.indexOf('rotate') === 0
+        type === 'swipe' ||
+        type === 'pinch' ||
+        type === 'rotate'
       ) {
-        // 这里应该会有问题
         offset[offset.length-1] =
-          require('./tool')[`get_${type_id}_offset`](
+          require('./tool')[`get_${type}_offset`](
             cache.start_points,
             get_points_from_fingers(evt_stack.move.current.touches),
-            cache[`${type_id}_start_offset`]
+            cache[`${type}_start_offset`]
           );
       }
     } else
@@ -740,7 +745,8 @@ function reset () {
   clean_arr(evt_stack.start.increase);
   delete evt_stack.start.increase;
   evt_stack.start.increase = [];
-
+  
+  group_gap_stack     = [];
   offset_stack.swipe  = [];
   offset_stack.pinch  = [];
   offset_stack.rotate = [];
@@ -943,8 +949,6 @@ function touchmove(evt) {
       cache.swipe_start_offset
     ), {x: 0, y: 0});
 
-  console.log('moved:' + movedOffset);
-
   if (movedOffset > TAP_THRESHOLD)
     schedule.set_base('tap', STATUS.cancel);
 
@@ -960,6 +964,7 @@ function touchmove(evt) {
   // 将会在start里面补一帧的move
 
   if (evt.touches.length > 1) {
+    window.__debug = true;
     schedule.set_base('pinch', STATUS.move);
     schedule.set_base('pinch', STATUS.start);
     schedule.set_base('rotate', STATUS.move);
@@ -979,7 +984,7 @@ function touchend(evt) {
   if (touch_num === 0) {
     schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);
-    // debugger;
+    // window.__debug = true;
   } else {
     update_cache(evt);
   }

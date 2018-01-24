@@ -146,6 +146,16 @@ document.addEventListener("DOMContentLoaded", function() {
     },
   });
 
+  addEvent($box, {
+    type:      'swipe',
+    finger:     2,
+
+    end:       function(){console.log('swipe 2 end');},
+    move:      function(){console.log('swipe 2 move');},
+    start:     function(){console.log('swipe 2 start');},
+    cancel:    function(){console.log('swipe 2 cancel');},
+  });
+
   var groupCtrl = addEvent($box, {
     type:      'groupEvent',
 

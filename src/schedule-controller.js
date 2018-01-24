@@ -115,7 +115,7 @@ ScheduleController.prototype.write_base = function(config){
 
   // 特殊处理continuous, 允许finger之间是互斥的, 如果有设置的话
   if (EVENT[type].type === TYPE_CONTINUOUS && config.finger !== undefined) {
-    if (this.base[type+'_'+config.finger]) {
+    if (this.base[type+'_'+config.finger] === undefined) {
       this.base[type+'_'+config.finger] = {
         status:    STATUS.init,
         endWith:   undefined,
