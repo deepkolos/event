@@ -2,7 +2,7 @@ import { Type } from './tool';
 
 const DEFAULT_LONGTAP_THRESHOLD = 700;
 const DEFAULT_TAP_FINGER        = 1;
-const TAP_THRESHOLD             = 1.8;
+const TAP_THRESHOLD             = 1.9;
 const PRESS_THRESHOLD           = 6;
 
 const TYPE_MONENT      = 0;

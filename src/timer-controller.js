@@ -51,7 +51,7 @@ TimerController.prototype.start = function(name, delay){
       }
 
       if (longtap_ids.length !== 0){
-        // debugger;
+        console.log('longtap debounce trigger');
         start_bus_bubble({
           type: 'longtap',
         }, function(){

@@ -523,13 +523,6 @@ function update_triggerlist(evt) {
       if (base.status === STATUS.init)
         return;
 
-      // if (
-      //   window.__debug && 
-      //   groupId === 'swipe[finger=2,startWith=undefined,endWith=undefined]{}'
-      // ) debugger;
-
-      tmp = !config_equal(base.startWith, base_config.startWith);
-
       // fingerCheck
       if (!(
         base_config.finger !== undefined
@@ -763,6 +756,8 @@ function reset () {
   for (var name in cache) {
     delete cache[name];
   }
+
+  console.log('reseted');
 }
 
 function update_event_info (evt) {
@@ -798,6 +793,8 @@ function update_event_info (evt) {
     evt_info.srcEvent = evt;
     evt_info.pointers = evt.touches;
     evt_info.timeStamp = evt.timeStamp;
+
+    if (last_arr(1, evt_stack.start.increase) === undefined) debugger;
 
     // 当前重心
     if (
@@ -918,6 +915,7 @@ function touchstart(evt) {
   }
 
   // longtap 的16ms的定时器
+  timer.stop('longtap_debounce');
   timer.start('longtap_debounce');
 
   update_cache(evt);

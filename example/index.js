@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", function() {
   var $bar  = document.querySelector('#bar');
   var count = 0;
 
-  
   addEvent($box, {
     type:      'tap',
     finger:    1,
@@ -83,7 +82,7 @@ document.addEventListener("DOMContentLoaded", function() {
     move:      function(){console.log('longtap move');},
     start:     function(){console.log('longtap start');},
     cancel:    function(){console.log('longtap cancel');},
-  }).removeEvent();
+  });
 
   addEvent($foo, {
     type:      'swipe',
