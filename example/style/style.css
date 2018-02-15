@@ -28,3 +28,23 @@
   height: 50px;
   background: rgb(68, 78, 216);
 }
+
+.table {
+  margin: 0;
+  padding: 0;
+  display: block;
+}
+
+.table > li {
+  display: flex;
+}
+
+.table > li > .right {
+  display: block;
+  flex: 1 0 auto;
+}
+
+.table > li > .left {
+  display: block;
+  flex: 0 0 auto;
+}

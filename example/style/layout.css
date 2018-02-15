@@ -1,0 +1,30 @@
+
+.interact {
+  width: 300px;
+  margin: 20px auto;
+  border: 1px solid lightblue;
+  background: lightskyblue;
+  height: 220px;
+  text-align: center;
+  line-height: 220px;
+  color: white;
+}
+
+.status-displayer {
+  position: fixed;
+  bottom: 0;
+  border-top: 1px solid lightblue;
+  width: 100%;
+}
+
+.status-displayer .table > li{
+  padding: 3px 6px;
+}
+
+.status-displayer .right {
+  text-align: right;
+}
+
+.status-displayer .title {
+  padding: 3px 6px;
+}

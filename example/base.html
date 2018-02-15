@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>基事件</title>
+  <link rel="stylesheet" href="style/style.css">
+  <link rel="stylesheet" href="style/layout.css">
+  <script src="./base.out.js"></script>
+</head>
+<body>
+  <!-- 交互区 -->
+  <div id="interact" class="interact" unselectable="on" onselectstart="return false;" style="-moz-user-select:none;">
+    交互区
+  </div>
+
+  <!-- 状态显示区 -->
+  <div id="status-displayer" class="status-displayer">
+    <ul class="table">
+      <li>
+        <span class="left">状态显示</span>
+        <span class="right"><button id="reset-status">重置状态</button></span>
+      </li>
+      <li>
+        <span class="left">tap</span>
+        <span id="status-tap" class="right">init</span>
+      </li>
+      <li>
+        <span class="left">longtap</span>
+        <span id="status-longtap" class="right">init</span>
+      </li>
+      <li>
+        <span class="left">swipe</span>
+        <span id="status-swipe" class="right">init</span>
+      </li>
+      <li>
+        <span class="left">pinch</span>
+        <span id="status-pinch" class="right">init</span>
+      </li>
+      <li>
+        <span class="left">rotate</span>
+        <span id="status-rotate" class="right">init</span>
+      </li>
+    </ul>
+  </div>
+</body>
+</html>

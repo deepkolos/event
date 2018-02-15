@@ -140,7 +140,6 @@ var group_gap_stack    = [];     // 储存groupid因为还有更长的group而�
 var last_dom_involved  = [];
 var capture_status     = false;
 var bubble_started     = false;
-var evt_info           = null;
 var finger_num_changed = false;
 
 var cache = {
@@ -187,11 +186,6 @@ function bus(evt, usePatch) {
   }
 
   if (
-    $dom.getAttribute('id') === 'bar' &&
-    window.touches_num_2
-  ) debugger;
-
-  if (
     (
       // 锁的判断, 如果锁了的话, 仅仅触发lock的dom, 在这个次bus中
       capture_status === true && dom_index === captrue_dom
@@ -204,7 +198,7 @@ function bus(evt, usePatch) {
   ) {
     // 初始化evt_ctrl
     evt_ctrl = {
-      capture: function(triggerStart){
+      capture: function(){
         // 因为不是手势是path上面同一的, 不针对单独节点, 所以提供设置单独实现start和cancel的触发
         if (captrue_dom !== dom_index) {
           captrue_dom = dom_index;
@@ -234,6 +228,7 @@ function bus(evt, usePatch) {
         if (info.groupId === groupId) {
           let group = schedule.group[groupId];
           let listener = info.config[STATUS[group.status]];
+          var evt_info = group.evt_info
 
           if (info.config.disable !== true) {
             listener instanceof Function && 
@@ -418,6 +413,7 @@ function groupstart(evt) {
 function groupend(evt) {
   if (schedule.commit_to_group(group_progress, actived_finger_num)) {
     group_progress++;
+    timer.stop('group_gap');
     timer.start('group_gap');
   } else {
     reset();
@@ -789,7 +785,8 @@ function update_event_info (evt) {
     var tmp, velocity_tmp;
 
     // 生成共用的
-    evt_info.type = base.type;
+    evt_info.type = base_config.type;
+    evt_info.status = base.status;
     evt_info.srcEvent = evt;
     evt_info.pointers = evt.touches;
     evt_info.timeStamp = evt.timeStamp;
@@ -962,7 +959,6 @@ function touchmove(evt) {
   // 将会在start里面补一帧的move
 
   if (evt.touches.length > 1) {
-    window.__debug = true;
     schedule.set_base('pinch', STATUS.move);
     schedule.set_base('pinch', STATUS.start);
     schedule.set_base('rotate', STATUS.move);
@@ -982,9 +978,13 @@ function touchend(evt) {
   if (touch_num === 0) {
     schedule.set_base('tap',   STATUS.end);
     schedule.set_base('swipe', STATUS.end);
-    // window.__debug = true;
   } else {
     update_cache(evt);
+  }
+
+  if (touch_num === 1) {
+    schedule.set_base(`pinch`,  STATUS.end);
+    schedule.set_base(`rotate`, STATUS.end);
   }
 
   schedule.set_base('longtap', STATUS.cancel);

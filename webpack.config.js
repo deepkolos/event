@@ -1,10 +1,21 @@
 // const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const path = require('path');
 
+function entry (list) {
+  var cfg = {}
+
+  list.forEach(function(item){
+    cfg[item] = `./example/${item}.js`
+  })
+  return cfg
+}
+
 module.exports = {
-  entry: './example/index.js',
+  entry: entry([
+    'index', 'base'
+  ]),
   output: {
-    filename: 'index.out.js',
+    filename: '[name].out.js',
     path: path.resolve(__dirname, 'example')
   },
   module: {

@@ -1,12 +1,11 @@
 import { STATUS } from './define';
-import { 
+import {
   schedule,
   start_bus_bubble,
   group_gap_trigger
 } from './main';
 
 function TimerController(){
-  //储存引用
   this.list = {};
 }
 
@@ -64,7 +63,9 @@ TimerController.prototype.start = function(name, delay){
         self.start(longtap_id, schedule.base[longtap_id].threshold);
       });
     });
-  }else if(name.indexOf('longtap') === 0){
+  }else
+
+  if(name.indexOf('longtap') === 0){
     _delay = delay;
     _warp_callback(function(){
       start_bus_bubble({
@@ -74,7 +75,9 @@ TimerController.prototype.start = function(name, delay){
         schedule.set_base('tap', STATUS.cancel);
       }, function (){});
     });
-  }else if(name === 'group_gap') {
+  }else
+
+  if(name === 'group_gap') {
     _delay = 300;
     _warp_callback(group_gap_trigger);
   }

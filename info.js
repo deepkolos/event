@@ -7,6 +7,7 @@ function Info () {
   this.type =         String; // 触发事件名字
   this.srcEvent =     Event;  // bus事件
   this.pointers =     Array;  // 提供raw信息源
+  this.status =       String; // 当前状态
 
   // general
   this.timeStamp =    Number;
