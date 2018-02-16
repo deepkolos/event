@@ -228,7 +228,7 @@ function bus(evt, usePatch) {
         if (info.groupId === groupId) {
           let group = schedule.group[groupId];
           let listener = info.config[STATUS[group.status]];
-          var evt_info = group.evt_info
+          var evt_info = group.evt_info;
 
           if (info.config.disable !== true) {
             listener instanceof Function && 
@@ -236,6 +236,8 @@ function bus(evt, usePatch) {
                 $dom, evt_info, evt_ctrl);
 
             // start补一帧move, TYPE_CONTINUOUS的事件
+            evt_info = Object.assign({}, evt_info);
+            evt_info.status = STATUS.move;
             group.group[group_progress] &&
             EVENT[group.group[group_progress].type].type === TYPE_CONTINUOUS &&
             group.status === STATUS.start &&
@@ -790,6 +792,7 @@ function update_event_info (evt) {
     evt_info.srcEvent = evt;
     evt_info.pointers = evt.touches;
     evt_info.timeStamp = evt.timeStamp;
+    evt_info.cfg = base_config;
 
     if (last_arr(1, evt_stack.start.increase) === undefined) debugger;
 

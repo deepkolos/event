@@ -17,11 +17,17 @@ document.addEventListener("DOMContentLoaded", function() {
     var $status = $log.querySelector(`#status-${info.type}`);
 
     $status.innerText = STATUS[info.status];
-    console.log(`${info.type}: ${STATUS[info.status]}`);
+    console.log(`${info.type}: ${STATUS[info.status]}`, info);
   }
 
   function cfg (obj) {
     return Object.assign({}, defaultCfg, obj);
+  }
+
+  function resetStatus () {
+    $statusArr.forEach(function($status){
+      $status.innerHTML = 'init';
+    });
   }
 
   addEvent($box, cfg({
@@ -44,20 +50,10 @@ document.addEventListener("DOMContentLoaded", function() {
     type: 'rotate',
   }));
 
-  addEvent($box, cfg({
+  addEvent($box, {
     type: 'groupEvent',
+    start: resetStatus
+  });
 
-    start: function(){
-      $resetBtn.onclick();
-    },
-    move: function(){},
-    end: function(){},
-    cancel: function(){}
-  }));
-
-  $resetBtn.onclick = function (){
-    $statusArr.forEach(function($status){
-      $status.innerHTML = 'init';
-    });
-  };
+  $resetBtn.onclick = resetStatus;
 });

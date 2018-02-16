@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>finger</title>
+  <link rel="stylesheet" href="style/style.css">
+  <link rel="stylesheet" href="style/layout.css">
+  <script src="./finger.out.js"></script>
+</head>
+<body>
+  <!-- 交互区 -->
+  <div id="interact" class="interact" unselectable="on" onselectstart="return false;" style="-moz-user-select:none;">
+    交互区
+  </div>
+
+  <!-- 状态显示区 -->
+  <div id="status-displayer" class="status-logger">
+    <table>
+      <tr>
+        <td>名字</td>
+        <td>finger</td>
+        <td>状态</td>
+        <td><button id="reset">clear</button></td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

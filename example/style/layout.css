@@ -10,11 +10,12 @@
   color: white;
 }
 
-.status-displayer {
+.status-displayer, .status-logger {
   position: fixed;
   bottom: 0;
   border-top: 1px solid lightblue;
   width: 100%;
+  z-index: 0;
 }
 
 .status-displayer .table > li{
@@ -27,4 +28,18 @@
 
 .status-displayer .title {
   padding: 3px 6px;
+}
+
+.status-logger {
+  min-height: 50px;
+  max-height: 50%;
+  overflow: scroll;
+}
+
+.status-logger table{
+  width: 100%;
+}
+
+.status-logger table tr:first-child{
+  background: white;
 }
