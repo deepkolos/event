@@ -4,4 +4,3 @@ export function dom (str, container = 'div') {
   $container.innerHTML = str;
   return $container.children;
 }
-

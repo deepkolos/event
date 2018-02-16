@@ -141,6 +141,7 @@ var last_dom_involved  = [];
 var capture_status     = false;
 var bubble_started     = false;
 var finger_num_changed = false;
+var bubbleend_patch    = null;
 
 var cache = {
   start_points:        null,
@@ -354,6 +355,9 @@ function bubbleend(evt, patch) {
       }
     }
   });
+
+  // 内部的_bubbleend
+  bubbleend_patch && bubbleend_patch();
 }
 
 function groupstart(evt) {
@@ -551,7 +555,7 @@ function update_triggerlist(evt) {
       ) {
 
         if (
-          group.status === STATUS.start || 
+          group.status === STATUS.start ||
           group.status === STATUS.move
         ) group.status = STATUS.cancel;
 
@@ -996,6 +1000,24 @@ function touchend(evt) {
   schedule.set_base(`swipe_${touch_num+1}`,  STATUS.end);
   schedule.set_base(`pinch_${touch_num+1}`,  STATUS.end);
   schedule.set_base(`rotate_${touch_num+1}`, STATUS.end);
+
+  bubbleend_patch = function(){
+    bubbleend_patch = null;
+    schedule.set_base(`swipe_${touch_num}`,  STATUS.reinit);
+    schedule.set_base(`pinch_${touch_num}`,  STATUS.reinit);
+    schedule.set_base(`rotate_${touch_num}`, STATUS.reinit);
+
+    var group;
+    for (let groupId in schedule.group) {
+      group = schedule.group[groupId];
+      if (group.status === STATUS.end && [
+        `swipe_${touch_num}`,
+        `pinch_${touch_num}`,
+        `rotate_${touch_num}`
+      ].includes(group.group[group_progress].type_id)
+      ) group.status = group_progress;
+    }
+  };
 }
 
 function touchcancel(evt) {

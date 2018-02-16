@@ -26,7 +26,8 @@ const STATUS = new Type({
   [-1]: 'start',
   [-2]: 'move',
   [-3]: 'end',
-  [-4]: 'cancel'
+  [-4]: 'cancel',
+  [-5]: 'reinit'
 });
 //正数用于gourp的进度
 

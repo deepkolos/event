@@ -21,6 +21,11 @@ ScheduleController.prototype.set_base = function(type, set_status){
       return;
     }
 
+    if (set_status === STATUS.reinit) {
+      this.base[type].status = STATUS.init;
+      return;
+    }
+
     if (
       // 设置start
       (
