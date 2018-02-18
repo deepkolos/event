@@ -12,7 +12,7 @@ function entry (list) {
 
 module.exports = {
   entry: entry([
-    'index', 'base', 'finger'
+    'index', 'base', 'finger', 'repeat'
   ]),
   output: {
     filename: '[name].out.js',
